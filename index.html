@@ -215,9 +215,22 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
    <div class="row" style="margin-top:10px"><button class="ghost" id="remSave">保存并授权通知</button><button class="ghost" id="remIcs">写入日历（.ics）</button><button class="ghost" id="remTest">发送测试提醒</button></div>
    <p class="sub" id="remMsg" style="margin-top:8px"></p>
   </div>
-  <div class="card"><h2>加密云同步（跨设备）</h2>
+  <div class="card"><h2>云端账号与同步</h2>
+   <p class="sub">用邮箱注册账号，在多台设备间同步。数据先在本机用「云端加密口令」加密，服务器上只有密文，开发者和云服务商都读不到内容。忘记加密口令后数据无法恢复。</p>
+   <div id="sbOut">
+    <label class="l" for="sbEmail">邮箱</label><input type="text" id="sbEmail" autocomplete="username" inputmode="email">
+    <label class="l" for="sbPw">账号密码（至少 8 位）</label><input type="password" id="sbPw" autocomplete="current-password">
+    <div class="row" style="margin-top:10px"><button class="ghost" id="sbIn">登录</button><button class="ghost" id="sbUp">注册新账号</button></div>
+   </div>
+   <div id="sbIn2" class="hide"><p class="sub" id="sbWho"></p>
+    <div class="row" style="margin-top:6px"><button class="ghost" id="sbNow">立即同步</button><button class="ghost" id="sbLogout">退出登录</button><button class="ghost" id="sbDel">删除云端数据</button></div></div>
+   <label class="l" for="sbPass">云端加密口令（至少 6 位，与账号密码不同）</label><input type="password" id="sbPass" autocomplete="off">
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="sbKeep"> 记住登录与口令，解锁后自动同步（仅在启用本机加密后生效，加密保存）</label>
+   <p class="sub" id="sbMsg" style="margin-top:8px"></p>
+  </div>
+  <div class="card"><h2>进阶：GitHub Gist 同步（可选）</h2>
    <p class="sub">用你自己的 GitHub 账号做存储：数据先在本机用口令加密，再存进一个私密 Gist。没有第三方服务器，没有人能读到内容。需要一个只勾选 gist 权限的个人访问令牌（GitHub → Settings → Developer settings → Personal access tokens）。</p>
-   <label class="l" for="syTok">GitHub 令牌（仅 gist 权限）</label><input type="password" id="syTok" autocomplete="off">
+   <p class="sub">不想注册账号的话，也可以把加密数据存进你自己的 GitHub 私密 Gist。</p><label class="l" for="syTok">GitHub 令牌（仅 gist 权限）</label><input type="password" id="syTok" autocomplete="off">
    <label class="l" for="syPass">加密口令（忘记后无法恢复，请牢记）</label><input type="password" id="syPass" autocomplete="off">
    <label class="row sub" style="margin-top:10px"><input type="checkbox" id="syAuto"> 记住令牌与口令，解锁后自动同步（仅在启用本机加密后生效，加密保存）</label>
    <div class="row" style="margin-top:10px"><button class="ghost" id="syNow">立即同步</button><button class="ghost" id="syOff">断开并清除令牌</button></div>
@@ -492,7 +505,7 @@ async function tryUnlock(){const m=$("#lockMsg");if(Date.now()<until){m.textCont
  catch(e){fails++;m.textContent="口令不对";$("#lockIn").value="";if(fails>=5)until=Date.now()+Math.min(300000,Math.pow(2,fails-5)*5000)}}
 $("#lockGo").onclick=tryUnlock;$("#lockIn").onkeydown=e=>{if(e.key==="Enter")tryUnlock()};
 let armForget=false;$("#lockForget").onclick=()=>{if(!armForget){armForget=true;$("#lockMsg").textContent="再点一次将清空本机全部数据（云端备份不受影响）";return}try{localStorage.clear()}catch(e){}location.reload()};
-function afterUnlock(){initSyncUI();initAIUI();vState();render();const s=secrets.sync;if(s&&s.auto&&s.tok&&s.pass)setTimeout(()=>syncNow(true),1200)}
+function afterUnlock(){initSyncUI();if(typeof sbRestore==="function")sbRestore();initAIUI();vState();render();const s=secrets.sync;if(s&&s.auto&&s.tok&&s.pass)setTimeout(()=>syncNow(true),1200)}
 /* --- PWA --- */
 let deferred=null;
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferred=e;$("#installMsg").textContent="可以安装"});
@@ -553,6 +566,44 @@ $("#syNow").onclick=()=>syncNow(false);
 $("#syOff").onclick=()=>{const p=prefs0();delete p.sync;savePrefs(p);delete secrets.sync;save();$("#syTok").value="";$("#syPass").value="";$("#syAuto").checked=false;$("#syMsg").textContent="已断开，本机不再保留令牌和口令。云端的加密数据仍保留在你的 Gist 里。"};
 function initSyncUI(){const s=secrets.sync;$("#syAuto").checked=!!(s&&s.auto);if(s){$("#syTok").value=s.tok||"";$("#syPass").value=s.pass||""}const l=(prefs0().sync||{}).last;if(l)$("#syMsg").textContent="上次同步："+fmt(l)}
 initSyncUI();
+
+/* --- Supabase 账号与端到端加密云同步（表 vaults，行级安全：只能读写自己的一行） --- */
+const SB="https://xjgdjsvsabhdfrhjbfev.supabase.co",SBK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqZ2Rqc3ZzYWJoZGZyaGpiZmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMzU4MTAsImV4cCI6MjEwNjgxMTgxMH0.vq0JNo87XD6c43n4SMyRL-zRxu8bI5vLHP4I8-eAQr0";
+let sess=null;
+const sbH=t=>({apikey:SBK,Authorization:"Bearer "+(t||SBK),"Content-Type":"application/json"});
+function sbErr(j,st){const m=String(j.msg||j.error_description||j.message||j.error||"");
+ if(/invalid login/i.test(m))return"邮箱或密码不对";if(/already (registered|exists)/i.test(m))return"这个邮箱已经注册，请直接登录";if(/password/i.test(m)&&/(least|weak|short|characters)/i.test(m))return"密码太简单，至少 8 位并混合字母和数字";
+ if(/rate limit|too many/i.test(m)||st===429)return"操作太频繁，请稍后再试";if(/valid email|email.*invalid/i.test(m))return"邮箱格式不对";if(/confirm/i.test(m))return"需要先确认邮箱";return m||("请求失败 "+st)}
+async function sbAuth(path,body){const r=await fetch(SB+"/auth/v1/"+path,{method:"POST",headers:sbH(),body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(sbErr(j,r.status));return j}
+function setSess(j){sess={at:j.access_token,rt:j.refresh_token,exp:Date.now()+(j.expires_in||3600)*1000-60000,email:(j.user&&j.user.email)||(sess&&sess.email)||"",uid:(j.user&&j.user.id)||(sess&&sess.uid)||""}}
+async function sbToken(){if(!sess)throw new Error("请先登录");if(Date.now()>sess.exp){const j=await sbAuth("token?grant_type=refresh_token",{refresh_token:sess.rt});setSess(j);sbPersist()}return sess.at}
+function sbPersist(){if(!vaultKey)return;if(sess&&$("#sbKeep").checked){secrets.sb={rt:sess.rt,email:sess.email,uid:sess.uid,cp:$("#sbPass").value}}else delete secrets.sb;save()}
+function sbUI(){const on=!!sess;$("#sbOut").classList.toggle("hide",on);$("#sbIn2").classList.toggle("hide",!on);if(on)$("#sbWho").textContent="已登录："+sess.email}
+const sbMsg=t=>{$("#sbMsg").textContent=t};
+async function sbSign(kind){const email=$("#sbEmail").value.trim(),pw=$("#sbPw").value;if(!/^\S+@\S+\.\S+$/.test(email)){sbMsg("邮箱格式不对");return}if(pw.length<8){sbMsg("账号密码至少 8 位");return}
+ sbMsg(kind==="up"?"注册中…":"登录中…");
+ try{const j=kind==="up"?await sbAuth("signup",{email,password:pw}):await sbAuth("token?grant_type=password",{email,password:pw});
+  if(!j.access_token){sbMsg("注册成功，但账号需要邮箱确认后才能登录。");return}
+  setSess(j);if(!sess.email)sess.email=email;$("#sbPw").value="";sbUI();sbPersist();sbMsg((kind==="up"?"注册成功，已登录。":"登录成功。")+"填写云端加密口令后点「立即同步」。");if($("#sbPass").value.length>=6)sbSync(true)}
+ catch(e){sbMsg((kind==="up"?"注册失败：":"登录失败：")+e.message)}}
+$("#sbIn").onclick=()=>sbSign("in");$("#sbUp").onclick=()=>sbSign("up");
+let sbBusy=false;
+async function sbSync(silent){if(sbBusy)return;const cp=$("#sbPass").value;if(cp.length<6){if(!silent)sbMsg("请先填写云端加密口令（至少 6 位）。");return}
+ sbBusy=true;sbMsg("同步中…");
+ try{const tok=await sbToken(),H=sbH(tok);
+  const g=await fetch(SB+"/rest/v1/vaults?select=blob",{headers:H});if(!g.ok)throw new Error("读取云端失败 "+g.status);const rows=await g.json();let pulled=0;
+  if(rows.length){let r;try{r=await decrypt(rows[0].blob,cp)}catch(e){throw new Error("云端加密口令不对，已停止，没有改动云端数据")}const before=entries.length+thoughts.length+practice.length;applyMerge(r);pulled=entries.length+thoughts.length+practice.length-before}
+  const body=await encrypt(snapshot(),cp);
+  const u=await fetch(SB+"/rest/v1/vaults?on_conflict=user_id",{method:"POST",headers:{...H,Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify([{user_id:sess.uid,blob:body,updated_at:new Date().toISOString()}])});
+  if(!u.ok)throw new Error("上传失败 "+u.status);
+  const p=prefs0();p.sb={last:Date.now()};savePrefs(p);sbPersist();sbMsg(`同步完成：从云端合并了 ${Math.max(pulled,0)} 条新数据，已加密上传。时间 ${fmt(Date.now())}`);render()}
+ catch(e){sbMsg("同步失败："+e.message)}sbBusy=false}
+$("#sbNow").onclick=()=>sbSync(false);
+$("#sbLogout").onclick=async()=>{try{if(sess)await fetch(SB+"/auth/v1/logout",{method:"POST",headers:sbH(sess.at)})}catch(e){}sess=null;if(vaultKey){delete secrets.sb;save()}sbUI();sbMsg("已退出登录，本机不再保留登录状态。")};
+let sbArm=false;$("#sbDel").onclick=async()=>{if(!sbArm){sbArm=true;$("#sbDel").textContent="再点一次确认删除";setTimeout(()=>{sbArm=false;$("#sbDel").textContent="删除云端数据"},3000);return}
+ sbArm=false;$("#sbDel").textContent="删除云端数据";try{const tok=await sbToken(),r=await fetch(SB+"/rest/v1/vaults?user_id=eq."+sess.uid,{method:"DELETE",headers:sbH(tok)});if(!r.ok)throw new Error("状态 "+r.status);sbMsg("云端加密数据已删除。本机数据不受影响。")}catch(e){sbMsg("删除失败："+e.message)}};
+function sbRestore(){const s=secrets.sb;if(!s||!s.rt)return;sess={at:"",rt:s.rt,exp:0,email:s.email,uid:s.uid};$("#sbKeep").checked=true;$("#sbPass").value=s.cp||"";sbUI();if(s.cp)setTimeout(()=>sbSync(true),1500)}
+sbUI();
 
 /* --- 想法整理（CBT） --- */
 const DIST=["非黑即白","灾难化","读心术","过度概括","情绪化推理","应该思维","个人化","贴标签","忽略积极面"];
