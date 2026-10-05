@@ -232,8 +232,8 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
   </div>
   <div class="card"><h2>进阶：GitHub Gist 同步（可选）</h2>
    <p class="sub">用你自己的 GitHub 账号做存储：数据先在本机用口令加密，再存进一个私密 Gist。没有第三方服务器，没有人能读到内容。需要一个只勾选 gist 权限的个人访问令牌（GitHub → Settings → Developer settings → Personal access tokens）。</p>
-   <p class="sub">不想注册账号的话，也可以把加密数据存进你自己的 GitHub 私密 Gist。</p><label class="l" for="syTok">GitHub 令牌（仅 gist 权限）</label><input type="password" id="syTok" autocomplete="off">
-   <label class="l" for="syPass">加密口令（忘记后无法恢复，请牢记）</label><input type="password" id="syPass" autocomplete="off">
+   <p class="sub">不想注册账号的话，也可以把加密数据存进你自己的 GitHub 私密 Gist。</p><label class="l" for="syTok">GitHub 令牌（仅 gist 权限）</label><input type="password" id="syTok" autocomplete="new-password">
+   <label class="l" for="syPass">加密口令（忘记后无法恢复，请牢记）</label><input type="password" id="syPass" autocomplete="new-password">
    <label class="row sub" style="margin-top:10px"><input type="checkbox" id="syAuto"> 记住令牌与口令，解锁后自动同步（仅在启用本机加密后生效，加密保存）</label>
    <div class="row" style="margin-top:10px"><button class="ghost" id="syNow">立即同步</button><button class="ghost" id="syOff">断开并清除令牌</button></div>
    <p class="sub" id="syMsg" style="margin-top:8px"></p>
@@ -242,7 +242,7 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
    <p class="sub">默认的周报由本地规则生成，不上传任何数据。如需大模型润色，填写你自己的 OpenAI 兼容接口。密钥只保存在本浏览器。</p>
    <label class="l" for="aiBase">接口地址</label><input type="text" id="aiBase" placeholder="https://api.openai.com/v1">
    <label class="l" for="aiModel">模型名</label><input type="text" id="aiModel" placeholder="例如 gpt-4o-mini">
-   <label class="l" for="aiKey">API Key</label><input type="password" id="aiKey" autocomplete="off">
+   <label class="l" for="aiKey">API Key</label><input type="password" id="aiKey" autocomplete="new-password">
    <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiOk"> 我知道点击后，周报与记录文字会发送到上述服务</label>
    <button class="primary" id="aiSave">保存设置</button>
   </div>
@@ -411,7 +411,7 @@ function weekReport(w){const t0=dayStart(Date.now()),end=t0+DAY-w*7*DAY,start=en
  const sl=es.filter(e=>e.trigs.includes("睡眠不足")),ns=es.filter(e=>!e.trigs.includes("睡眠不足"));if(sl.length&&ns.length)R.paras.push(`睡眠不足的 ${sl.length} 条记录平均 ${avgOf(sl).toFixed(1)}，其他记录平均 ${avgOf(ns).toFixed(1)}，睡眠和你的状态有明显关联。`);
  const wd={};es.forEach(e=>{const k=new Date(e.t).getDay();(wd[k]=wd[k]||[]).push(e)});const wl=Object.entries(wd).map(([k,v])=>({k:+k,v:avgOf(v)})).sort((a,b)=>a.v-b.v);if(wl.length>=3&&wl[0].v<=2.5)R.paras.push(`${WD[wl[0].k]}是你的低谷日，可以提前为它安排一点缓冲或奖励。`);
  const kinds={};es.forEach(e=>{const k=kindOf(e);kinds[k]=(kinds[k]||0)+1});R.kind=Object.entries(kinds).sort((a,b)=>b[1]-a[1])[0][0];
- const adv={anx:"紧绷感偏多：每天固定留 3 分钟做呼吸或着陆练习，比情绪爆发时再处理更有效。",sad:"低落偏多：先别要求自己振作，试试自我慈悲练习，并给一个信任的人发条消息。",tired:"疲惫偏多：优先保证睡眠和休息，把不紧急的事往后挪一挪。",ok:"整体比较平稳：把让你开心的事记下来，它们是你的情绪储备。"};
+ const adv={anx:"紧绷感偏多：每天固定留 3 分钟做呼吸或着陆练习，比情绪爆发时再处理更有效。",sad:"低落偏多：先别要求自己振作，试试自我慈悲练习，并给一个信任的人发条消息。",tired:"疲惫偏多：优先保证睡眠和休息，把不紧急的事往后挪一挪。",ok:"整体比较平稳，把让你开心的事记下来，它们是你的情绪储备。"};
  R.paras.push("小建议："+adv[R.kind]);return R}
 let rpW=0,lastReport=null;
 function renderReport(){const R=weekReport(rpW);lastReport=R;const b=$("#rpBody");b.innerHTML="";R.paras.forEach(t=>b.append(el("p",{text:t})));
@@ -646,7 +646,7 @@ function renderCBT(){const b=$("#cbtList");b.innerHTML="";if(!thoughts.length){r
 function renderMems(){const box=$("#mems");box.innerHTML="";const t0=dayStart(Date.now());let n=0;
  [[7,"一周前"],[30,"一个月前"],[90,"三个月前"],[365,"一年前"]].forEach(([d,l])=>{const a=dayStart(new Date(t0).setDate(new Date(t0).getDate()-d));inRange(a,a+DAY).slice(0,1).forEach(e=>{n++;box.append(el("div",{class:"mem"},el("div",{class:"sub",text:l+"的今天"}),el("div",{text:MOODS[e.mood-1].f+" "+(e.emos.join("、")||MOODS[e.mood-1].t)+(e.note?"：":"")}),e.note?el("div",{class:"sub",text:e.note}):null))})});
  $("#memCard").classList.toggle("hide",!n)}
-function maxStreak(){const ds=[...new Set(entries.map(e=>dayStart(e.t)))].sort((a,b)=>a-b);let best=0,run=0,prev=0;ds.forEach(d=>{run=(prev&&d-prev<=DAY*1.5)?run+1:1;prev=d;best=Math.max(best,run)});return best}
+function maxStreak(){const ds=[...new Set(entries.filter(e=>!e.demo).map(e=>dayStart(e.t)))].sort((a,b)=>a-b);let best=0,run=0,prev=0;ds.forEach(d=>{run=(prev&&d-prev<=DAY*1.5)?run+1:1;prev=d;best=Math.max(best,run)});return best}
 function renderBadges(){const real=entries.filter(e=>!e.demo),ms=maxStreak(),tags=real.reduce((a,e)=>a+e.emos.length,0);
  const B=[["🌱","第一条记录",real.length>=1],["🔥","连续 3 天",ms>=3],["🌟","连续 7 天",ms>=7],["🏔","连续 30 天",ms>=30],["📚","累计 20 条",real.length>=20],["🧘","完成 5 次练习",practice.length>=5],["🧩","整理过想法",thoughts.length>=1],["🔍","情绪觉察 30 次",tags>=30]];
  const b=$("#badges");b.innerHTML="";B.forEach(([e,t,on])=>b.append(el("div",{class:"badge"+(on?" on":"")},el("span",{class:"e",text:e}),t)))}
