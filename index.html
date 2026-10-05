@@ -207,12 +207,14 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
    <p class="sub" id="vState" style="margin-top:8px"></p>
   </div>
   <div class="card"><h2>每日提醒</h2>
-   <p class="sub">静态网页无法在关闭后由服务器推送。这里提供三种方式：打开应用时提醒、已安装应用的后台提醒（部分 Chrome 支持）、以及写入手机日历的每日重复提醒（最可靠）。</p>
+   <p class="sub">三种方式可以叠加：①应用内提示条；②服务器推送，关掉网页也能收到（需要允许通知，iPhone 需要先「添加到主屏幕」）；③写入手机日历的每日重复提醒。今天已经记录过，当天就不会再推送。</p>
    <label class="row sub" style="margin-top:10px"><input type="checkbox" id="remOn"> 开启提醒</label>
    <label class="l" for="remMode">提醒方式</label>
    <select id="remMode"><option value="fixed">每天固定时间</option><option value="random">时间窗内随机一次（避免形成习惯性忽略）</option></select>
    <div class="row" style="margin-top:8px"><label class="sub" for="remT">时间</label><input type="time" id="remT" value="21:00" style="width:auto"><label class="sub" for="remT2" id="remT2l">到</label><input type="time" id="remT2" value="22:30" style="width:auto"></div>
-   <div class="row" style="margin-top:10px"><button class="ghost" id="remSave">保存并授权通知</button><button class="ghost" id="remIcs">写入日历（.ics）</button><button class="ghost" id="remTest">发送测试提醒</button></div>
+   <div class="row" style="margin-top:10px"><button class="ghost" id="remSave">保存并授权通知</button><button class="ghost" id="remIcs">写入日历（.ics）</button><button class="ghost" id="remTest">发送本地测试提醒</button></div>
+   <div class="row" style="margin-top:8px"><button class="ghost" id="pushOn">开启服务器推送</button><button class="ghost" id="pushOff">关闭服务器推送</button><button class="ghost" id="pushTest">服务器推送测试</button></div>
+   <p class="sub" id="pushState" style="margin-top:6px"></p>
    <p class="sub" id="remMsg" style="margin-top:8px"></p>
   </div>
   <div class="card"><h2>云端账号与同步</h2>
@@ -361,7 +363,7 @@ function recsFor(k){const r=RECS[k],m=MEDS.find(x=>x.id===r.med),x=EXS.find(x=>x
 $("#save").onclick=()=>{
  if(!S.mood){$("#save").textContent="请先选择一个心情";setTimeout(()=>$("#save").textContent="记录这一刻",1500);return}
  const e={id:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:Date.now(),mood:S.mood,emos:[...S.emos],trigs:[...S.trigs],note:$("#note").value.trim()};
- entries.unshift(e);save();
+ entries.unshift(e);save();if(typeof pushDone==="function")pushDone();
  const k=kindOf(e),a=$("#after");a.hidden=false;a.innerHTML="";
  a.append(el("h2",{text:"已记录 ✓"}),el("p",{style:"margin:0 0 4px",text:(e.mood<=2?"听起来今天不太容易。":"谢谢你记下这一刻。")+(e.trigs.length?`看起来「${e.trigs[0]}」对你有影响。`:"")+"试试下面一个小练习："}),recsFor(k)[0]);
  S.mood=0;S.emos.clear();S.trigs.clear();$("#note").value="";document.querySelectorAll(".chip,.moods button").forEach(b=>b.setAttribute("aria-pressed","false"));render()};
@@ -532,12 +534,34 @@ $("#remSave").onclick=async()=>{const p=prefs0();p.rem={on:$("#remOn").checked,m
  if(p.rem.on){if(!("Notification"in window))msg+="此浏览器不支持通知，将只在应用内显示提示条。";else{const perm=Notification.permission==="granted"?"granted":await Notification.requestPermission();msg+=perm==="granted"?"已授权通知。":"未授权通知，将只在应用内显示提示条。"}
   try{if(swReg&&"periodicSync"in swReg)await swReg.periodicSync.register("qy-remind",{minInterval:12*3600e3})}catch(e){}
   msg+="浏览器关闭时不会收到推送，想要稳定提醒请再点「写入日历」。"}
- $("#remMsg").textContent=msg;syncPrefsToSW();remindTick()};
+ $("#remMsg").textContent=msg;syncPrefsToSW();remindTick();if(prefs0().pushOn)pushSync(true)};
 $("#remTest").onclick=async()=>{const ok=await notify("这是一条测试提醒。");$("#remMsg").textContent=ok?"测试提醒已发出。":"没能发出通知：请先点「保存并授权通知」，并检查系统是否允许浏览器通知。"};
 $("#remIcs").onclick=()=>{const t=($("#remT").value||"21:00").split(":"),d=new Date(),ymd=d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
  const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//qingyi//diary//CN","BEGIN:VEVENT","UID:qingyi-daily@mood-diary","DTSTAMP:"+ymd+"T000000","DTSTART:"+ymd+"T"+t[0]+t[1]+"00","DURATION:PT5M","RRULE:FREQ=DAILY","SUMMARY:晴一日记 · 记录今天的心情","DESCRIPTION:花一分钟，记下此刻的心情。https://cjy20040604-hub.github.io/mood-diary/","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:记录今天的心情","TRIGGER:PT0M","END:VALARM","END:VEVENT","END:VCALENDAR"].join("\r\n");
  const a=el("a",{href:URL.createObjectURL(new Blob([ics],{type:"text/calendar"})),download:"qingyi-reminder.ics"});document.body.append(a);a.click();a.remove();$("#remMsg").textContent="已生成日历文件，打开后会添加「每天重复」的提醒。若没有弹出下载，请在普通浏览器标签中打开本页再试。"};
 loadRem();setInterval(remindTick,30000);
+
+/* --- 服务器推送（Web Push：Supabase 边缘函数 + 每分钟定时任务） --- */
+const VAPID="BEw-gN0x9S7mxs58vOsZVJPrkuvZ6qdhJ8yzbseY_MDRRrdIVmPz06tV1iJuCtY86-kuk69W7Bvbd8dSQZi9-QI";
+const u8=x=>{const b=(x+"=".repeat((4-x.length%4)%4)).replace(/-/g,"+").replace(/_/g,"/"),r=atob(b);return Uint8Array.from(r,c=>c.charCodeAt(0))};
+const pushMsg=t=>{$("#pushState").textContent=t};
+async function pushCall(body){const r=await fetch(SB+"/functions/v1/push",{method:"POST",headers:{"Content-Type":"application/json",apikey:SBK,Authorization:"Bearer "+SBK},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||("状态 "+r.status));return j}
+async function pushReg(){if(!("serviceWorker"in navigator)||!("PushManager"in window))return null;try{return await navigator.serviceWorker.ready}catch(e){return null}}
+async function pushSub(){const r=await pushReg();return r?r.pushManager.getSubscription():null}
+const pushParams=()=>({tz:new Date().getTimezoneOffset(),min:remMins($("#remT").value),mode:$("#remMode").value,winEnd:remMins($("#remT2").value)});
+async function pushSync(silent){try{const sub=await pushSub();if(!sub){if(prefs0().pushOn){const p=prefs0();p.pushOn=false;savePrefs(p)}pushUI();return}await pushCall({action:"subscribe",sub:sub.toJSON(),...pushParams()});if(!silent)pushMsg("服务器推送已开启，设置已同步。")}catch(e){if(!silent)pushMsg("同步推送设置失败："+e.message)}}
+async function pushUI(){const sub=await pushSub().catch(()=>null);const on=!!sub&&typeof Notification!=="undefined"&&Notification.permission==="granted";$("#pushOn").classList.toggle("on",on);
+ if(!("PushManager"in window))pushMsg(/iphone|ipad/i.test(navigator.userAgent)?"iPhone 需要先用 Safari「添加到主屏幕」，再从桌面图标打开，才能开启推送。":"当前浏览器不支持服务器推送。");
+ else pushMsg(on?"服务器推送：已开启。":"服务器推送：未开启。")}
+$("#pushOn").onclick=async()=>{try{const reg=await pushReg();if(!reg){pushUI();return}if(!navigator.serviceWorker.controller&&!reg.active){pushMsg("离线组件还没就绪，请稍后再试。");return}
+  if(typeof Notification==="undefined"){pushMsg("当前浏览器不支持通知。");return}const perm=Notification.permission==="granted"?"granted":await Notification.requestPermission();if(perm!=="granted"){pushMsg("没有获得通知权限，请在浏览器的网站设置里允许通知后重试。");return}
+  const sub=await reg.pushManager.getSubscription()||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(VAPID)});
+  await pushCall({action:"subscribe",sub:sub.toJSON(),...pushParams()});const p=prefs0();p.pushOn=true;savePrefs(p);pushMsg("服务器推送已开启。到点时即使关闭网页也会收到提醒。");pushUI()}
+ catch(e){pushMsg("开启失败："+e.message)}};
+$("#pushOff").onclick=async()=>{try{const sub=await pushSub();if(sub){await pushCall({action:"unsubscribe",endpoint:sub.endpoint}).catch(()=>{});await sub.unsubscribe()}const p=prefs0();p.pushOn=false;savePrefs(p);pushMsg("服务器推送已关闭，服务器上的订阅信息已删除。");pushUI()}catch(e){pushMsg("关闭失败："+e.message)}};
+$("#pushTest").onclick=async()=>{try{const sub=await pushSub();if(!sub){pushMsg("还没有开启服务器推送。");return}await pushCall({action:"test",endpoint:sub.endpoint});pushMsg("测试推送已发出，几秒内应该收到通知。")}catch(e){pushMsg("测试失败："+e.message)}};
+async function pushDone(){try{if(!prefs0().pushOn)return;const sub=await pushSub();if(sub)await pushCall({action:"done",endpoint:sub.endpoint})}catch(e){}}
+setTimeout(()=>{pushUI();if(!locked)pushSync(true)},1500);
 
 /* --- 加密云同步（GitHub Gist） --- */
 async function aesKey(pass,salt){const m=await crypto.subtle.importKey("raw",enc.encode(pass),"PBKDF2",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:200000,hash:"SHA-256"},m,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}

@@ -1,4 +1,4 @@
-const CACHE="qingyi-v4";
+const CACHE="qingyi-v5";
 const SHELL=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL.map(u=>new Request(u,{cache:"reload"})))).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith("qingyi-")&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
@@ -21,4 +21,6 @@ async function remindIfNeeded(){
  await self.registration.showNotification("晴一日记",{body:p.text||"花一分钟，记下此刻的心情吧。",icon:"icon-192.png",tag:"daily"});
  p.last=now.toDateString();await c.put("prefs",new Response(JSON.stringify(p)))}
 self.addEventListener("periodicsync",e=>{if(e.tag==="qy-remind")e.waitUntil(remindIfNeeded())});
+// 服务器推送：显示通知（不含任何用户数据，文案由服务器随机挑选）
+self.addEventListener("push",e=>{let d={};try{d=e.data?e.data.json():{}}catch(_){}e.waitUntil(self.registration.showNotification(d.title||"晴一日记",{body:d.body||"花一分钟，记下此刻的心情吧。",icon:"icon-192.png",badge:"icon-192.png",tag:"daily"}))});
 self.addEventListener("notificationclick",e=>{e.notification.close();e.waitUntil(self.clients.matchAll({type:"window"}).then(l=>l.length?l[0].focus():self.clients.openWindow("./index.html")))});
