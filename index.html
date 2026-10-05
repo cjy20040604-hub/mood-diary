@@ -1,0 +1,186 @@
+<title>晴一日记</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+/* Layout: 单列手机优先 App，顶部标签切换 今日 / 洞察 / 调节；柔和海盐蓝绿 + 暖橙点缀 */
+:root{--bg:#f3f6f5;--card:#fff;--fg:#1f2f2d;--mute:#6b7d7a;--line:#dbe5e2;--accent:#2f8f83;--accent-soft:#dff1ee;--warm:#e8884a;--warm-soft:#fbe9dc;--bad:#c4564a;
+--display:"Noto Serif SC","Songti SC",serif;--body:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121b1a;--card:#1b2827;--fg:#e6efed;--mute:#97aaa6;--line:#2c3d3b;--accent:#5cc2b3;--accent-soft:#1f3a36;--warm:#f09a62;--warm-soft:#3a2a1f;--bad:#e27a6e;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121b1a;--card:#1b2827;--fg:#e6efed;--mute:#97aaa6;--line:#2c3d3b;--accent:#5cc2b3;--accent-soft:#1f3a36;--warm:#f09a62;--warm-soft:#3a2a1f;--bad:#e27a6e;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.6;padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-family:var(--display);font-size:26px;margin:0;letter-spacing:.04em}
+h2{font-family:var(--display);font-size:18px;margin:0 0 10px;text-wrap:balance}
+.sub{color:var(--mute);font-size:13px;margin:0}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+nav{display:flex;gap:6px;background:var(--card);padding:4px;border-radius:12px;border:1px solid var(--line)}
+nav button{flex:1;border:0;background:none;color:var(--mute);font:inherit;font-weight:500;padding:8px;border-radius:9px;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--accent);color:#fff}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--warm);outline-offset:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.moods{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.moods button{border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 2px;font:inherit;color:var(--fg);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.moods .f{font-size:26px}.moods .t{font-size:12px;color:var(--mute)}
+.moods button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:99px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip.w[aria-pressed="true"]{background:var(--warm);border-color:var(--warm)}
+label.l{display:block;font-size:13px;color:var(--mute);margin:14px 0 6px;letter-spacing:.04em}
+textarea{width:100%;min-height:84px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;padding:10px;font:inherit;resize:vertical}
+.primary{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer;width:100%;margin-top:14px}
+.ghost{background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}
+.entry{border-top:1px solid var(--line);padding:12px 0;display:flex;gap:12px}
+.entry:first-of-type{border-top:0}
+.entry .f{font-size:26px}
+.entry .m{flex:1;min-width:0}
+.entry .d{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.tag{font-size:12px;border-radius:6px;padding:1px 7px;background:var(--accent-soft);color:var(--accent);margin-right:4px;display:inline-block}
+.tag.w{background:var(--warm-soft);color:var(--warm)}
+.bar{display:grid;grid-template-columns:64px 1fr 56px;gap:10px;align-items:center;font-size:13px;margin:7px 0}
+.bar i{display:block;height:10px;border-radius:5px;background:var(--warm)}
+.bar span:last-child{color:var(--mute);text-align:right;font-variant-numeric:tabular-nums}
+.insight{background:var(--warm-soft);border-radius:10px;padding:12px;font-size:14px;margin-top:12px}
+.rec{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
+.rec:first-of-type{border-top:0}
+.rec .k{font-size:11px;background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:2px 8px;white-space:nowrap}
+.rec b{display:block}.rec p{margin:0;color:var(--mute);font-size:13px}
+.breath{display:flex;flex-direction:column;align-items:center;gap:14px;padding:10px 0}
+.orb{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--accent-soft),var(--accent));display:grid;place-items:center;color:#fff;font-weight:700;transition:transform 4s ease-in-out}
+.orb.in{transform:scale(1.35)}
+@media (prefers-reduced-motion:reduce){.orb{transition:none}}
+.hide{display:none}
+.care{font-size:12px;color:var(--mute);text-align:center}
+svg text{fill:var(--mute);font-size:10px}
+</style>
+
+<div class="wrap">
+ <header>
+  <div><h1>晴一日记</h1><p class="sub" id="greet">记下此刻，轻轻接住自己</p></div>
+  <span class="sub" id="streak"></span>
+ </header>
+ <nav role="tablist">
+  <button role="tab" data-t="log" aria-selected="true">今日记录</button>
+  <button role="tab" data-t="insight" aria-selected="false">情绪洞察</button>
+  <button role="tab" data-t="care" aria-selected="false">自我关怀</button>
+ </nav>
+
+ <section id="log" class="tab">
+  <div class="card">
+   <h2>此刻心情如何？</h2>
+   <div class="moods" id="moods"></div>
+   <label class="l">具体的情绪（可多选）</label>
+   <div class="chips" id="emos"></div>
+   <label class="l">是什么触发了它？（可多选）</label>
+   <div class="chips" id="trigs"></div>
+   <label class="l" for="note">想说点什么（可选）</label>
+   <textarea id="note" placeholder="例如：今天组会被点名，脑子一片空白……"></textarea>
+   <button class="primary" id="save">记录这一刻</button>
+  </div>
+  <div class="card" id="after" hidden></div>
+  <div class="card"><h2>最近记录</h2><div id="list"></div></div>
+ </section>
+
+ <section id="insight" class="tab hide">
+  <div class="card"><h2>近 14 天情绪曲线</h2><div id="chart"></div><p class="sub" id="avg"></p></div>
+  <div class="card"><h2>触发因素排行</h2><p class="sub">按「带来的低落程度」排序，越长越需要关注</p><div id="trigbars"></div><div class="insight" id="insightText"></div></div>
+  <button class="ghost" id="demo">载入示例数据，预览洞察效果</button>
+ </section>
+
+ <section id="care" class="tab hide">
+  <div class="card"><h2>1 分钟呼吸练习</h2>
+   <div class="breath"><div class="orb" id="orb">准备</div><button class="ghost" id="bstart">开始 4-4 呼吸</button></div></div>
+  <div class="card"><h2 id="recTitle">为你推荐</h2><div id="recs"></div></div>
+  <div class="card"><h2>写给自己的一句话</h2><p id="quote" style="margin:0"></p></div>
+  <p class="care">本产品用于日常自我记录与关怀，不能替代专业诊疗。如感到难以承受，请联系身边的人，或拨打心理援助热线 12356。</p>
+ </section>
+</div>
+
+<script>
+const MOODS=[{v:1,f:"😣",t:"很糟"},{v:2,f:"😔",t:"低落"},{v:3,f:"😐",t:"一般"},{v:4,f:"🙂",t:"不错"},{v:5,f:"😄",t:"很好"}];
+const EMOS=["焦虑","烦躁","委屈","孤独","疲惫","自责","平静","开心","期待","感恩"];
+const TRIGS=["学业/考试","工作/实习","人际社交","家庭","睡眠不足","自我比较","未来迷茫","经济压力","身体不适"];
+const KIND={焦虑:"anx",烦躁:"anx",委屈:"sad",孤独:"sad",疲惫:"tired",自责:"sad",平静:"ok",开心:"ok",期待:"ok",感恩:"ok"};
+const RECS={
+anx:[["冥想","5 分钟身体扫描","从头到脚逐一放松，把注意力从担心的事情拉回身体。"],["音乐","白噪音 · 雨声","稳定的节奏帮助降低警觉，适合边做事边听。"],["运动","快走 10 分钟","把紧张的能量释放出来，比坐着硬扛更有效。"]],
+sad:[["冥想","慈悲冥想 5 分钟","对自己说：「这很难，我已经尽力了。」"],["音乐","舒缓钢琴 / 轻吉他","不必强行振作，让音乐陪你待一会儿。"],["社交","给一个人发条消息","不用说很多，一句「在吗」就够了。"]],
+tired:[["休息","20 分钟小睡或闭目","设好闹钟，允许自己暂停。"],["运动","肩颈拉伸 5 分钟","久坐后的僵硬会放大疲惫感。"],["饮食","喝杯温水，吃点东西","身体的基础需求常被忽略。"]],
+ok:[["记录","写下让你开心的原因","下次低落时，它会成为你的情绪储备。"],["运动","散步或轻跑 15 分钟","把好状态延长一点。"],["音乐","喜欢的歌单","和好心情一起待会儿。"]]};
+const QUOTES=["你不需要一直坚强，也值得被温柔对待。","情绪像天气，会来也会走。","今天做到这样，已经很好了。","先照顾好自己，再去应付世界。"];
+const $=s=>document.querySelector(s);
+let S={mood:0,emos:new Set(),trigs:new Set()};
+function load(){try{return JSON.parse(localStorage.getItem("qy_entries")||"[]")}catch(e){return[]}}
+function store(a){try{localStorage.setItem("qy_entries",JSON.stringify(a))}catch(e){}}
+let entries=load();
+
+function chips(el,arr,set,cls){arr.forEach(x=>{const b=document.createElement("button");b.className="chip "+cls;b.textContent=x;b.setAttribute("aria-pressed","false");
+ b.onclick=()=>{set.has(x)?set.delete(x):set.add(x);b.setAttribute("aria-pressed",set.has(x))};el.appendChild(b)})}
+MOODS.forEach(m=>{const b=document.createElement("button");b.innerHTML=`<span class="f">${m.f}</span><span class="t">${m.t}</span>`;b.setAttribute("aria-pressed","false");
+ b.onclick=()=>{S.mood=m.v;[...$("#moods").children].forEach(c=>c.setAttribute("aria-pressed",c===b))};$("#moods").appendChild(b)});
+chips($("#emos"),EMOS,S.emos,"");chips($("#trigs"),TRIGS,S.trigs,"w");
+
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+ document.querySelectorAll("nav button").forEach(x=>x.setAttribute("aria-selected",x===b));
+ document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("hide",t.id!==b.dataset.t));
+ render()});
+
+function kindOf(e){const ks=e.emos.map(x=>KIND[x]).filter(Boolean);
+ if(ks.includes("anx"))return"anx";if(ks.includes("sad"))return"sad";if(ks.includes("tired"))return"tired";
+ return e.mood>=4?"ok":(e.mood<=2?"sad":"ok")}
+function fmt(t){const d=new Date(t);return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`}
+
+$("#save").onclick=()=>{
+ if(!S.mood){$("#save").textContent="请先选择一个心情";setTimeout(()=>$("#save").textContent="记录这一刻",1500);return}
+ const e={t:Date.now(),mood:S.mood,emos:[...S.emos],trigs:[...S.trigs],note:$("#note").value.trim()};
+ entries.unshift(e);store(entries);
+ const k=kindOf(e),r=RECS[k],a=$("#after");a.hidden=false;
+ const low=e.mood<=2;
+ a.innerHTML=`<h2>已记录 ✓</h2><p style="margin:0 0 8px">${low?"听起来今天不太容易。":"谢谢你记下这一刻。"}${e.trigs.length?`看起来「${e.trigs[0]}」对你有影响。`:""}</p><div class="rec"><span class="k">${r[0][0]}</span><div><b>${r[0][1]}</b><p>${r[0][2]}</p></div></div><button class="ghost" id="goCare">查看更多调节方案</button>`;
+ $("#goCare").onclick=()=>document.querySelector('[data-t="care"]').click();
+ S.mood=0;S.emos.clear();S.trigs.clear();$("#note").value="";
+ document.querySelectorAll(".chip,.moods button").forEach(b=>b.setAttribute("aria-pressed","false"));
+ render()};
+
+function renderList(){const el=$("#list");
+ if(!entries.length){el.innerHTML='<p class="sub">还没有记录。选一个心情，开始第一条吧。</p>';return}
+ el.innerHTML=entries.slice(0,6).map(e=>`<div class="entry"><span class="f">${MOODS[e.mood-1].f}</span><div class="m"><div class="d">${fmt(e.t)}</div>${e.emos.map(x=>`<span class="tag">${x}</span>`).join("")}${e.trigs.map(x=>`<span class="tag w">${x}</span>`).join("")}${e.note?`<div style="margin-top:4px;overflow-wrap:anywhere"></div>`:""}</div></div>`).join("");
+ [...el.querySelectorAll(".entry")].forEach((n,i)=>{const e=entries[i];if(e.note)n.querySelector(".m div:last-child").textContent=e.note})}
+
+function renderInsight(){
+ const day=864e5,now=Date.now(),days=[];
+ for(let i=13;i>=0;i--){const s=new Date(now-i*day);s.setHours(0,0,0,0);const a=s.getTime(),es=entries.filter(e=>e.t>=a&&e.t<a+day);
+  days.push({a,v:es.length?es.reduce((x,y)=>x+y.mood,0)/es.length:null})}
+ const W=600,H=150,p=24;let pts=days.map((d,i)=>d.v==null?null:[p+i*(W-2*p)/13,H-p-(d.v-1)*(H-2*p)/4]);
+ const path=pts.filter(Boolean).map((q,i)=>(i?"L":"M")+q[0].toFixed(1)+" "+q[1].toFixed(1)).join(" ");
+ let g="";for(let v=1;v<=5;v++){const y=H-p-(v-1)*(H-2*p)/4;g+=`<line x1="${p}" x2="${W-p}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="4" y="${y+3}">${v}</text>`}
+ $("#chart").innerHTML=entries.length?`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="近14天情绪曲线">${g}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>${pts.filter(Boolean).map(q=>`<circle cx="${q[0]}" cy="${q[1]}" r="4" fill="var(--accent)"/>`).join("")}</svg>`:'<p class="sub">记录几天后，这里会出现你的情绪曲线。</p>';
+ const all=entries.filter(e=>e.t>now-14*day);
+ $("#avg").textContent=all.length?`近 14 天共 ${all.length} 条，平均心情 ${(all.reduce((x,y)=>x+y.mood,0)/all.length).toFixed(1)} / 5`:"";
+ const m={};entries.forEach(e=>e.trigs.forEach(t=>{(m[t]=m[t]||{n:0,s:0});m[t].n++;m[t].s+=e.mood}));
+ const rows=Object.entries(m).map(([k,v])=>({k,n:v.n,avg:v.s/v.n,low:5-v.s/v.n})).sort((a,b)=>b.low-a.low||b.n-a.n);
+ $("#trigbars").innerHTML=rows.length?rows.map(r=>`<div class="bar"><span>${r.k}</span><span><i style="width:${(r.low/4*100).toFixed(0)}%"></i></span><span>${r.n}次·${r.avg.toFixed(1)}</span></div>`).join(""):'<p class="sub">记录时勾选触发因素，就能看到哪些事最影响你。</p>';
+ const t=rows[0];$("#insightText").hidden=!t;
+ if(t){let s=`你的「${t.k}」相关记录平均心情只有 ${t.avg.toFixed(1)}，是目前最需要关注的触发因素。`;
+  const sl=entries.filter(e=>e.trigs.includes("睡眠不足"));if(sl.length>=2&&t.k!=="睡眠不足")s+=` 另外，睡眠不足出现 ${sl.length} 次，建议今晚早点休息。`;
+  $("#insightText").textContent="💡 "+s}}
+
+function renderCare(){const e=entries[0],k=e?kindOf(e):"anx";
+ $("#recTitle").textContent=e?`根据你最近的「${e.emos[0]||MOODS[e.mood-1].t}」，为你推荐`:"为你推荐";
+ $("#recs").innerHTML=RECS[k].map(r=>`<div class="rec"><span class="k">${r[0]}</span><div><b>${r[1]}</b><p>${r[2]}</p></div></div>`).join("");
+ $("#quote").textContent=QUOTES[new Date().getDate()%QUOTES.length]}
+
+function render(){renderList();renderInsight();renderCare();
+ const ds=new Set(entries.map(e=>new Date(e.t).toDateString()));let n=0;
+ for(let i=0;i<365;i++){if(ds.has(new Date(Date.now()-i*864e5).toDateString()))n++;else if(i>0)break;else continue}
+ $("#streak").textContent=n?`已连续记录 ${n} 天`:""}
+
+$("#demo").onclick=()=>{const d=864e5,T=["学业/考试","工作/实习","人际社交","睡眠不足","自我比较"];
+ entries=Array.from({length:12},(_,i)=>{const tr=T[i%5],low=tr==="学业/考试"||tr==="睡眠不足";
+  return{t:Date.now()-i*d*1.1,mood:low?1+(i%2):3+(i%3),emos:[low?"焦虑":"平静"],trigs:[tr],note:""}});
+ store(entries);render()};
+
+let timer;$("#bstart").onclick=()=>{clearInterval(timer);const o=$("#orb");let ph=0,c=0;
+ const step=()=>{ph=!ph;o.classList.toggle("in",ph);o.textContent=ph?"吸气":"呼气";if(++c>15){clearInterval(timer);o.classList.remove("in");o.textContent="完成";}};
+ step();timer=setInterval(step,4000)};
+render();
+</script>
