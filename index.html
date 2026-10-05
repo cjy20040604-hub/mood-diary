@@ -1,3 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2f8f83">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="晴一日记">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png" type="image/png">
 <title>晴一日记</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
 <style>
@@ -73,7 +85,28 @@ textarea{min-height:84px;resize:vertical}
 .care{font-size:12px;color:var(--mute);text-align:center;margin:0}
 svg text{fill:var(--mute);font-size:10px}
 input[type=range]{width:100%;accent-color:var(--accent)}
+body{padding-top:calc(20px + env(safe-area-inset-top,0px));padding-bottom:calc(56px + env(safe-area-inset-bottom,0px))}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.badge{border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center;font-size:12px;background:var(--bg)}
+.badge .e{font-size:24px;display:block;filter:grayscale(1);opacity:.4}
+.badge.on{background:var(--accent-soft);border-color:var(--accent)}
+.badge.on .e{filter:none;opacity:1}
+.mem{border-left:3px solid var(--warm);padding:2px 0 2px 10px;margin:8px 0;overflow-wrap:anywhere}
+.lock.hide,.year.hide,.heat.hide{display:none}
+.lock{position:fixed;inset:0;z-index:99;background:var(--bg);display:grid;place-items:center;padding:24px}
+.lock .box{width:100%;max-width:320px;text-align:center;display:flex;flex-direction:column;gap:12px}
+.lock input{text-align:center;font-size:22px;letter-spacing:.4em}
+.year{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:2px;overflow-x:auto;padding-bottom:6px}
+.year div{width:11px;height:11px;border-radius:2px;background:var(--line)}
+.year .lv1{background:var(--l1)}.year .lv2{background:var(--l2)}.year .lv3{background:var(--l3)}.year .lv4{background:var(--l4)}.year .lv5{background:var(--l5)}
+.thought{border-top:1px solid var(--line);padding:10px 0;overflow-wrap:anywhere}
+.thought:first-of-type{border-top:0}
+.delta{color:var(--accent);font-weight:700}
+.rng{display:flex;gap:10px;align-items:center}.rng output{min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+details summary{cursor:pointer;color:var(--accent);font-size:13px}
 </style>
+</head>
+<body>
 
 <div class="wrap">
  <header>
@@ -91,6 +124,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
  <section id="log" class="tab">
   <div class="alert hide" id="lowAlert"></div>
+  <div class="alert hide" id="remindBar"></div>
   <div class="card">
    <h2>此刻心情如何？</h2>
    <div class="moods" id="moods"></div>
@@ -103,9 +137,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
    <button class="primary" id="save">记录这一刻</button>
   </div>
   <div class="card" id="after" hidden></div>
+  <div class="card hide" id="memCard"><h2>往日今天</h2><div id="mems"></div></div>
   <div class="card"><h2>记录</h2>
+   <input type="text" id="search" placeholder="搜索备注、情绪、触发因素…" aria-label="搜索记录" style="margin-bottom:8px">
    <div class="row" style="margin-bottom:8px"><select id="filter" aria-label="按心情筛选" style="width:auto"><option value="0">全部心情</option><option value="low">低落（1–2）</option><option value="mid">一般（3）</option><option value="high">愉快（4–5）</option></select><span class="sub" id="count"></span></div>
    <div id="list"></div><button class="ghost" id="more" style="margin-top:8px">查看更多</button></div>
+  <div class="card"><h2>成就</h2><div class="badges" id="badges"></div></div>
  </section>
 
  <section id="insight" class="tab hide">
@@ -117,7 +154,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
    <p class="sub" id="aiHint" style="margin-top:8px"></p>
   </div>
   <div class="card"><h2>近 14 天情绪曲线</h2><div id="chart"></div><p class="sub" id="avg"></p></div>
-  <div class="card"><h2>最近 5 周日历</h2><div class="heat" id="heat"></div>
+  <div class="card"><h2>情绪日历</h2><div class="row" style="margin-bottom:8px"><button class="ghost on" id="calW">最近 5 周</button><button class="ghost" id="calY">全年像素图</button></div><div class="heat" id="heat"></div><div class="year hide" id="year"></div>
    <div class="row sub" style="margin-top:8px">低<span class="chips" style="gap:3px"><span class="tag" style="background:var(--l1)">&nbsp;</span><span class="tag" style="background:var(--l2)">&nbsp;</span><span class="tag" style="background:var(--l3)">&nbsp;</span><span class="tag" style="background:var(--l4)">&nbsp;</span><span class="tag" style="background:var(--l5)">&nbsp;</span></span>高</div></div>
   <div class="card"><h2>触发因素排行</h2><p class="sub">按「带来的低落程度」排序，越长越需要关注</p><div id="trigbars"></div><div class="insight" id="insightText"></div></div>
   <div class="card"><h2>情绪构成（近 30 天）</h2><div id="emobars"></div></div>
@@ -137,11 +174,53 @@ input[type=range]{width:100%;accent-color:var(--accent)}
    <div class="row" style="margin-bottom:6px"><label class="row sub"><input type="checkbox" id="voice" checked> 语音引导</label><label class="row sub"><input type="checkbox" id="bgsound" checked> 配合背景音</label></div>
    <div id="meds"></div></div>
   <div class="card"><h2>动一动</h2><div id="exs"></div></div>
+  <div class="card"><h2>想法整理（认知行为练习）</h2>
+   <p class="sub">卡在一个念头里出不来时，用 2 分钟把它拆开看。字段都可以跳过。</p>
+   <button class="ghost" id="cbtOpen" style="margin-top:8px">开始一条想法记录</button>
+   <div id="cbtForm" class="hide">
+    <label class="l" for="cbtSit">当时发生了什么？</label><textarea id="cbtSit" style="min-height:56px"></textarea>
+    <label class="l" for="cbtThought">脑子里冒出的想法</label><textarea id="cbtThought" style="min-height:56px" placeholder="例如：我肯定搞砸了，大家都觉得我很差"></textarea>
+    <label class="l" for="cbtB">这个想法让你多难受？</label><div class="rng"><input type="range" id="cbtB" min="0" max="100" value="60"><output id="cbtBo">60</output></div>
+    <label class="l">可能的思维陷阱</label><div class="chips" id="cbtD"></div>
+    <label class="l" for="cbtAlt">换个角度：有什么事实不支持它？朋友遇到会怎么说？</label><textarea id="cbtAlt" style="min-height:56px"></textarea>
+    <label class="l" for="cbtBal">更平衡的想法</label><textarea id="cbtBal" style="min-height:56px"></textarea>
+    <label class="l" for="cbtA">现在有多难受？</label><div class="rng"><input type="range" id="cbtA" min="0" max="100" value="40"><output id="cbtAo">40</output></div>
+    <button class="primary" id="cbtSave">保存这条想法记录</button>
+   </div>
+   <div id="cbtList" style="margin-top:10px"></div>
+  </div>
   <div class="card"><h2>写给自己的一句话</h2><p id="quote" style="margin:0"></p></div>
   <p class="care">本产品用于日常自我记录与关怀，不能替代专业诊疗。如感到难以承受，请联系身边的人，或拨打全国心理援助热线 12356；遇到紧急危险请拨打 120 / 110。</p>
  </section>
 
  <section id="me" class="tab hide">
+  <div class="card"><h2>安装到桌面 / 离线使用</h2>
+   <p class="sub">安装后像 App 一样打开，断网也能记录。数据保存在本机。</p>
+   <div class="row" style="margin-top:10px"><button class="ghost" id="install">安装应用</button><span class="sub" id="installMsg"></span></div>
+  </div>
+  <div class="card"><h2>我的档案与隐私锁</h2>
+   <p class="sub">不需要注册账号。档案和 PIN 只存在本机，用来给应用上锁。</p>
+   <label class="l" for="nick">昵称</label><input type="text" id="nick" maxlength="12" placeholder="怎么称呼你？">
+   <label class="l" for="pin">4 位数字 PIN（留空表示不设锁）</label><input type="password" id="pin" inputmode="numeric" maxlength="4" autocomplete="off">
+   <button class="primary" id="profSave">保存档案</button>
+  </div>
+  <div class="card"><h2>每日提醒</h2>
+   <p class="sub">静态网页无法在关闭后由服务器推送。这里提供三种方式：打开应用时提醒、已安装应用的后台提醒（部分 Chrome 支持）、以及写入手机日历的每日重复提醒（最可靠）。</p>
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="remOn"> 开启提醒</label>
+   <label class="l" for="remMode">提醒方式</label>
+   <select id="remMode"><option value="fixed">每天固定时间</option><option value="random">时间窗内随机一次（避免形成习惯性忽略）</option></select>
+   <div class="row" style="margin-top:8px"><label class="sub" for="remT">时间</label><input type="time" id="remT" value="21:00" style="width:auto"><label class="sub" for="remT2" id="remT2l">到</label><input type="time" id="remT2" value="22:30" style="width:auto"></div>
+   <div class="row" style="margin-top:10px"><button class="ghost" id="remSave">保存并授权通知</button><button class="ghost" id="remIcs">写入日历（.ics）</button><button class="ghost" id="remTest">发送测试提醒</button></div>
+   <p class="sub" id="remMsg" style="margin-top:8px"></p>
+  </div>
+  <div class="card"><h2>加密云同步（跨设备）</h2>
+   <p class="sub">用你自己的 GitHub 账号做存储：数据先在本机用口令加密，再存进一个私密 Gist。没有第三方服务器，没有人能读到内容。需要一个只勾选 gist 权限的个人访问令牌（GitHub → Settings → Developer settings → Personal access tokens）。</p>
+   <label class="l" for="syTok">GitHub 令牌（仅 gist 权限）</label><input type="password" id="syTok" autocomplete="off">
+   <label class="l" for="syPass">加密口令（忘记后无法恢复，请牢记）</label><input type="password" id="syPass" autocomplete="off">
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="syAuto"> 打开应用时自动同步（口令和令牌会保存在本机）</label>
+   <div class="row" style="margin-top:10px"><button class="ghost" id="syNow">立即同步</button><button class="ghost" id="syOff">断开并清除令牌</button></div>
+   <p class="sub" id="syMsg" style="margin-top:8px"></p>
+  </div>
   <div class="card"><h2>AI 复盘设置（可选）</h2>
    <p class="sub">默认的周报由本地规则生成，不上传任何数据。如需大模型润色，填写你自己的 OpenAI 兼容接口。密钥只保存在本浏览器。</p>
    <label class="l" for="aiBase">接口地址</label><input type="text" id="aiBase" placeholder="https://api.openai.com/v1">
@@ -174,7 +253,8 @@ function el(tag,props,...kids){const e=document.createElement(tag);if(props)for(
 function lsGet(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 let entries=lsGet("qy_entries",[]).map(e=>e.id?e:{...e,id:e.t+"-"+Math.random().toString(36).slice(2,6)});
-const save=()=>lsSet("qy_entries",entries);
+let thoughts=lsGet("qy_thoughts",[]),practice=lsGet("qy_practice",[]),tomb=lsGet("qy_tomb",{});
+const save=()=>{lsSet("qy_entries",entries);lsSet("qy_thoughts",thoughts);lsSet("qy_practice",practice);lsSet("qy_tomb",tomb)};
 const DAY=864e5;
 const dayStart=t=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
 const avgOf=a=>a.length?a.reduce((x,y)=>x+y.mood,0)/a.length:null;
@@ -231,7 +311,7 @@ const Guide={g:null,i:0,left:0,iv:null,total:0,elapsed:0,
   this.next();this.iv=setInterval(()=>{this.left--;this.elapsed++;if(this.left<=0)this.next();else renderNow()},1000)},
  next(){this.i++;if(this.i>=this.g.steps.length){this.finish();return}const s=this.g.steps[this.i];this.left=s[1];this.say(s[0]);renderNow()},
  say(t){if(!$("#voice").checked||!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang="zh-CN";u.rate=.85;const v=speechSynthesis.getVoices().find(v=>/zh/i.test(v.lang));if(v)u.voice=v;speechSynthesis.speak(u)}catch(e){}},
- finish(){clearInterval(this.iv);const done=this.g;this.g=null;try{speechSynthesis.cancel()}catch(e){}if(Snd.cur&&done.scene)Snd.stop();renderNow(done)},
+ finish(){clearInterval(this.iv);const done=this.g;this.g=null;practice.push({id:"p"+Date.now(),t:Date.now(),g:done.title});save();try{speechSynthesis.cancel()}catch(e){}if(Snd.cur&&done.scene)Snd.stop();renderNow(done)},
  stop(silent){clearInterval(this.iv);this.g=null;try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}if(!silent)renderNow()}};
 let finished=null;
 function fmtT(s){return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
@@ -269,14 +349,16 @@ $("#save").onclick=()=>{
  a.append(el("h2",{text:"已记录 ✓"}),el("p",{style:"margin:0 0 4px",text:(e.mood<=2?"听起来今天不太容易。":"谢谢你记下这一刻。")+(e.trigs.length?`看起来「${e.trigs[0]}」对你有影响。`:"")+"试试下面一个小练习："}),recsFor(k)[0]);
  S.mood=0;S.emos.clear();S.trigs.clear();$("#note").value="";document.querySelectorAll(".chip,.moods button").forEach(b=>b.setAttribute("aria-pressed","false"));render()};
 $("#filter").onchange=()=>{shown=6;renderList()};
+$("#search").oninput=()=>{shown=6;renderList()};
 $("#more").onclick=()=>{shown+=10;renderList()};
 
 function renderList(){const box=$("#list");box.innerHTML="";const f=$("#filter").value;
- const all=entries.filter(e=>f==="0"||(f==="low"&&e.mood<=2)||(f==="mid"&&e.mood===3)||(f==="high"&&e.mood>=4));
+ const q=($("#search").value||"").trim().toLowerCase();
+ const all=entries.filter(e=>(f==="0"||(f==="low"&&e.mood<=2)||(f==="mid"&&e.mood===3)||(f==="high"&&e.mood>=4))&&(!q||[e.note,...e.emos,...e.trigs].join(" ").toLowerCase().includes(q)));
  $("#count").textContent=`共 ${all.length} 条`;
  if(!all.length){box.append(el("p",{class:"sub",text:entries.length?"没有符合条件的记录。":"还没有记录。选一个心情，开始第一条吧。"}))}
  all.slice(0,shown).forEach(e=>{let armed=false;const del=el("button",{class:"ghost",text:"删除"});
-  del.onclick=()=>{if(!armed){armed=true;del.textContent="确认删除";setTimeout(()=>{armed=false;del.textContent="删除"},2500)}else{entries=entries.filter(x=>x.id!==e.id);save();render()}};
+  del.onclick=()=>{if(!armed){armed=true;del.textContent="确认删除";setTimeout(()=>{armed=false;del.textContent="删除"},2500)}else{entries=entries.filter(x=>x.id!==e.id);tomb[e.id]=Date.now();save();render()}};
   box.append(el("div",{class:"entry"},el("span",{class:"f",text:MOODS[e.mood-1].f}),el("div",{class:"m"},el("div",{class:"d"},el("span",{text:fmt(e.t)}),del),e.emos.map(x=>el("span",{class:"tag",text:x})),e.trigs.map(x=>el("span",{class:"tag w",text:x})),e.note?el("div",{class:"n",text:e.note}):null)))});
  $("#more").classList.toggle("hide",all.length<=shown)}
 
@@ -368,3 +450,118 @@ function render(){renderList();renderInsight();renderCare();alertHtml($("#lowAle
  $("#streak").textContent=n?`已连续记录 ${n} 天`:""}
 render();renderNow();
 </script>
+<div class="lock hide" id="lock"><div class="box"><h1>晴一日记</h1><p class="sub" id="lockHi">输入 PIN 解锁</p><input type="password" id="lockIn" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="PIN"><p class="sub" id="lockMsg"></p><button class="ghost" id="lockForget">忘记 PIN</button></div></div>
+<script>
+/* ===== v3：PWA、提醒、加密云同步、PIN 锁、想法整理、往日今天、成就、年度像素图 ===== */
+const prefs0=()=>lsGet("qy_prefs",{});
+const savePrefs=p=>lsSet("qy_prefs",p);
+const enc=new TextEncoder(),dec=new TextDecoder();
+const b64=u=>{let s="";for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s)};
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function sha(s){return b64(new Uint8Array(await crypto.subtle.digest("SHA-256",enc.encode(s))))}
+
+/* --- PIN 锁 --- */
+async function checkLock(){const p=prefs0();if(!p.pin)return;const L=$("#lock");L.classList.remove("hide");$("#lockHi").textContent=(p.nick?p.nick+"，":"")+"输入 PIN 解锁";
+ $("#lockIn").value="";$("#lockIn").focus();
+ $("#lockIn").oninput=async e=>{if(e.target.value.length===4){if(await sha(p.salt+e.target.value)===p.pin){L.classList.add("hide")}else{$("#lockMsg").textContent="PIN 不对，再试一次";e.target.value=""}}}}
+let armForget=false;$("#lockForget").onclick=()=>{if(!armForget){armForget=true;$("#lockMsg").textContent="再点一次将清空本机全部数据（云端备份不受影响）";return}
+ try{localStorage.clear()}catch(e){}location.reload()};
+$("#profSave").onclick=async()=>{const p=prefs0();p.nick=$("#nick").value.trim();const pin=$("#pin").value.trim();
+ if(pin){if(!/^\d{4}$/.test(pin)){$("#meMsg").textContent="PIN 需要是 4 位数字。";return}p.salt=Math.random().toString(36).slice(2);p.pin=await sha(p.salt+pin)}else{delete p.pin;delete p.salt}
+ savePrefs(p);$("#pin").value="";$("#meMsg").textContent=pin?"档案已保存，下次打开需要输入 PIN。":"档案已保存，未设置锁。";greet()};
+function greet(){const n=prefs0().nick;$("#greet").textContent=n?`${n}，记下此刻，轻轻接住自己`:"记下此刻，轻轻接住自己"}
+$("#nick").value=prefs0().nick||"";
+
+/* --- PWA --- */
+let deferred=null;
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferred=e;$("#installMsg").textContent="可以安装"});
+addEventListener("appinstalled",()=>{$("#installMsg").textContent="已安装 ✓"});
+$("#install").onclick=async()=>{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone){$("#installMsg").textContent="已经在以应用方式运行。";return}
+ if(deferred){deferred.prompt();await deferred.userChoice;deferred=null}else if(/iphone|ipad/i.test(navigator.userAgent)){$("#installMsg").textContent="iPhone：用 Safari 点底部「分享」→「添加到主屏幕」。"}else{$("#installMsg").textContent="请用浏览器菜单中的「安装」或「添加到桌面」。"}};
+let swReg=null;
+if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname==="localhost"||location.hostname==="127.0.0.1")){navigator.serviceWorker.register("sw.js").then(r=>{swReg=r;syncPrefsToSW()}).catch(()=>{})}
+
+/* --- 提醒 --- */
+const remMins=t=>{const [h,m]=(t||"21:00").split(":").map(Number);return h*60+m};
+function todayRemindMin(p){if(p.mode!=="random")return remMins(p.t);const k=new Date().toDateString();if(p.rk!==k){const a=remMins(p.t),b=Math.max(a,remMins(p.t2));p.rk=k;p.rm=a+Math.floor(Math.random()*(b-a+1));savePrefs({...prefs0(),rem:p})}return p.rm}
+async function syncPrefsToSW(){try{const r=prefs0().rem;if(!("caches"in self)||!r)return;const c=await caches.open("qingyi-prefs");await c.put("prefs",new Response(JSON.stringify({on:!!r.on,min:todayRemindMin(r),text:"花一分钟，记下此刻的心情吧。",last:r.last||""})))}catch(e){}}
+async function notify(body){const o={body,icon:"icon-192.png",tag:"daily"};try{if(swReg&&Notification.permission==="granted"){await swReg.showNotification("晴一日记",o);return true}if(Notification.permission==="granted"){new Notification("晴一日记",o);return true}}catch(e){}return false}
+const hasToday=()=>entries.some(e=>dayStart(e.t)===dayStart(Date.now()));
+function remindTick(){const p=prefs0(),r=p.rem;if(!r||!r.on)return;const now=new Date(),mins=now.getHours()*60+now.getMinutes(),due=mins>=todayRemindMin(r);
+ const bar=$("#remindBar");const show=due&&!hasToday();bar.classList.toggle("hide",!show);if(show)bar.textContent="今天还没有记录。花一分钟，记下此刻的心情吧。";
+ if(show&&r.last!==now.toDateString()){r.last=now.toDateString();savePrefs({...prefs0(),rem:r});notify("花一分钟，记下此刻的心情吧。");syncPrefsToSW()}}
+function loadRem(){const r=prefs0().rem||{};$("#remOn").checked=!!r.on;$("#remMode").value=r.mode||"fixed";$("#remT").value=r.t||"21:00";$("#remT2").value=r.t2||"22:30";remModeUI()}
+function remModeUI(){const rnd=$("#remMode").value==="random";$("#remT2").classList.toggle("hide",!rnd);$("#remT2l").classList.toggle("hide",!rnd)}
+$("#remMode").onchange=remModeUI;
+$("#remSave").onclick=async()=>{const p=prefs0();p.rem={on:$("#remOn").checked,mode:$("#remMode").value,t:$("#remT").value||"21:00",t2:$("#remT2").value||"22:30",last:""};savePrefs(p);
+ let msg="提醒设置已保存。";
+ if(p.rem.on){if(!("Notification"in window))msg+="此浏览器不支持通知，将只在应用内显示提示条。";else{const perm=Notification.permission==="granted"?"granted":await Notification.requestPermission();msg+=perm==="granted"?"已授权通知。":"未授权通知，将只在应用内显示提示条。"}
+  try{if(swReg&&"periodicSync"in swReg)await swReg.periodicSync.register("qy-remind",{minInterval:12*3600e3})}catch(e){}
+  msg+="浏览器关闭时不会收到推送，想要稳定提醒请再点「写入日历」。"}
+ $("#remMsg").textContent=msg;syncPrefsToSW();remindTick()};
+$("#remTest").onclick=async()=>{const ok=await notify("这是一条测试提醒。");$("#remMsg").textContent=ok?"测试提醒已发出。":"没能发出通知：请先点「保存并授权通知」，并检查系统是否允许浏览器通知。"};
+$("#remIcs").onclick=()=>{const t=($("#remT").value||"21:00").split(":"),d=new Date(),ymd=d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
+ const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//qingyi//diary//CN","BEGIN:VEVENT","UID:qingyi-daily@mood-diary","DTSTAMP:"+ymd+"T000000","DTSTART:"+ymd+"T"+t[0]+t[1]+"00","DURATION:PT5M","RRULE:FREQ=DAILY","SUMMARY:晴一日记 · 记录今天的心情","DESCRIPTION:花一分钟，记下此刻的心情。https://cjy20040604-hub.github.io/mood-diary/","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:记录今天的心情","TRIGGER:PT0M","END:VALARM","END:VEVENT","END:VCALENDAR"].join("\r\n");
+ const a=el("a",{href:URL.createObjectURL(new Blob([ics],{type:"text/calendar"})),download:"qingyi-reminder.ics"});document.body.append(a);a.click();a.remove();$("#remMsg").textContent="已生成日历文件，打开后会添加「每天重复」的提醒。若没有弹出下载，请在普通浏览器标签中打开本页再试。"};
+loadRem();setInterval(remindTick,30000);
+
+/* --- 加密云同步（GitHub Gist） --- */
+async function aesKey(pass,salt){const m=await crypto.subtle.importKey("raw",enc.encode(pass),"PBKDF2",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:200000,hash:"SHA-256"},m,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}
+async function encrypt(obj,pass){const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),k=await aesKey(pass,salt);const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},k,enc.encode(JSON.stringify(obj))));return JSON.stringify({v:1,salt:b64(salt),iv:b64(iv),ct:b64(ct)})}
+async function decrypt(txt,pass){const j=JSON.parse(txt),k=await aesKey(pass,unb64(j.salt));return JSON.parse(dec.decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(j.iv)},k,unb64(j.ct))))}
+function mergeColl(a,b,tm){const m=new Map();[...a,...b].forEach(x=>{if(x&&x.id&&!tm[x.id]&&!m.has(x.id))m.set(x.id,x)});return[...m.values()].sort((x,y)=>y.t-x.t)}
+function snapshot(){return{entries:entries.filter(e=>!e.demo),thoughts,practice,tomb}}
+function applyMerge(r){const tm={...tomb};Object.entries(r.tomb||{}).forEach(([k,v])=>tm[k]=Math.max(tm[k]||0,v));tomb=tm;entries=mergeColl(entries,r.entries||[],tm);thoughts=mergeColl(thoughts,r.thoughts||[],tm);practice=mergeColl(practice,r.practice||[],tm);save()}
+const GH="https://api.github.com";
+const ghH=t=>({Authorization:"Bearer "+t,Accept:"application/vnd.github+json","Content-Type":"application/json"});
+async function ghJson(url,opt,tok){const r=await fetch(GH+url,{...opt,headers:ghH(tok)});if(r.status===401)throw new Error("令牌无效或已过期");if(r.status===403||r.status===404)throw new Error("令牌权限不足（需要 gist 权限）");if(!r.ok)throw new Error("GitHub 返回 "+r.status);return r.json()}
+async function findGist(tok){const sy=prefs0().sync||{};if(sy.gid)return sy.gid;for(let pg=1;pg<=3;pg++){const l=await ghJson(`/gists?per_page=100&page=${pg}`,{},tok);const g=l.find(x=>x.description==="qingyi-sync");if(g)return g.id;if(l.length<100)break}return null}
+let syncing=false;
+async function syncNow(silent){if(syncing)return;const tok=$("#syTok").value.trim(),pass=$("#syPass").value,msg=t=>{$("#syMsg").textContent=t};
+ if(!tok||!pass){if(!silent)msg("请先填写令牌和口令。");return}if(pass.length<6){msg("口令至少 6 位。");return}
+ syncing=true;msg("同步中…");
+ try{let gid=await findGist(tok),pulled=0;
+  if(gid){const g=await ghJson("/gists/"+gid,{},tok),f=g.files["qingyi.json"];let txt=f&&f.content;if(f&&f.truncated)txt=await fetch(f.raw_url).then(r=>r.text());
+   if(txt){let r;try{r=await decrypt(txt,pass)}catch(e){throw new Error("口令不对，或云端数据已损坏")}const before=entries.length+thoughts.length+practice.length;applyMerge(r);pulled=entries.length+thoughts.length+practice.length-before}}
+  const body=await encrypt(snapshot(),pass),payload={description:"qingyi-sync",public:false,files:{"qingyi.json":{content:body}}};
+  if(gid)await ghJson("/gists/"+gid,{method:"PATCH",body:JSON.stringify(payload)},tok);else gid=(await ghJson("/gists",{method:"POST",body:JSON.stringify(payload)},tok)).id;
+  const p=prefs0();p.sync={gid,auto:$("#syAuto").checked,tok:$("#syAuto").checked?tok:"",pass:$("#syAuto").checked?pass:"",last:Date.now()};savePrefs(p);
+  msg(`同步完成：从云端合并了 ${Math.max(pulled,0)} 条新数据，已加密上传。时间 ${fmt(Date.now())}`);render()}
+ catch(e){msg("同步失败："+e.message)}syncing=false}
+$("#syNow").onclick=()=>syncNow(false);
+$("#syOff").onclick=()=>{const p=prefs0();delete p.sync;savePrefs(p);$("#syTok").value="";$("#syPass").value="";$("#syAuto").checked=false;$("#syMsg").textContent="已断开，本机不再保存令牌和口令。云端的加密数据仍保留在你的 Gist 里。"};
+{const s=prefs0().sync;if(s){$("#syAuto").checked=!!s.auto;if(s.auto){$("#syTok").value=s.tok||"";$("#syPass").value=s.pass||"";if(s.tok&&s.pass)setTimeout(()=>syncNow(true),1500)}if(s.last)$("#syMsg").textContent="上次同步："+fmt(s.last)}}
+
+/* --- 想法整理（CBT） --- */
+const DIST=["非黑即白","灾难化","读心术","过度概括","情绪化推理","应该思维","个人化","贴标签","忽略积极面"];
+const dsel=new Set();DIST.forEach(x=>$("#cbtD").append(el("button",{class:"chip",text:x,"aria-pressed":"false",onclick:e=>{dsel.has(x)?dsel.delete(x):dsel.add(x);e.target.setAttribute("aria-pressed",dsel.has(x))}})));
+$("#cbtB").oninput=e=>$("#cbtBo").textContent=e.target.value;$("#cbtA").oninput=e=>$("#cbtAo").textContent=e.target.value;
+$("#cbtOpen").onclick=()=>$("#cbtForm").classList.toggle("hide");
+$("#cbtSave").onclick=()=>{const th=$("#cbtThought").value.trim();if(!th){$("#cbtThought").focus();return}
+ thoughts.unshift({id:"t"+Date.now()+Math.random().toString(36).slice(2,5),t:Date.now(),sit:$("#cbtSit").value.trim(),th,b:+$("#cbtB").value,d:[...dsel],alt:$("#cbtAlt").value.trim(),bal:$("#cbtBal").value.trim(),a:+$("#cbtA").value});save();
+ ["#cbtSit","#cbtThought","#cbtAlt","#cbtBal"].forEach(s=>$(s).value="");dsel.clear();document.querySelectorAll("#cbtD .chip").forEach(c=>c.setAttribute("aria-pressed","false"));$("#cbtForm").classList.add("hide");render()};
+function renderCBT(){const b=$("#cbtList");b.innerHTML="";if(!thoughts.length){return}
+ const tot=thoughts.reduce((a,x)=>a+(x.b-x.a),0)/thoughts.length;b.append(el("p",{class:"sub",text:`已整理 ${thoughts.length} 条，难受程度平均变化 ${tot>0?"降低":"上升"} ${Math.abs(tot).toFixed(0)} 点`}));
+ thoughts.slice(0,4).forEach(x=>{let armed=false;const del=el("button",{class:"ghost",text:"删除"});del.onclick=()=>{if(!armed){armed=true;del.textContent="确认删除";setTimeout(()=>{armed=false;del.textContent="删除"},2500)}else{thoughts=thoughts.filter(y=>y.id!==x.id);tomb[x.id]=Date.now();save();render()}};
+  b.append(el("div",{class:"thought"},el("div",{class:"d sub"},el("span",{text:fmt(x.t)+" · "+x.b+" → "+x.a}),del),el("div",{text:"想法："+x.th}),x.d.length?el("div",null,x.d.map(d=>el("span",{class:"tag w",text:d}))):null,x.bal?el("div",{class:"delta",text:"更平衡："+x.bal}):null))})}
+
+/* --- 往日今天、成就、年度像素图 --- */
+function renderMems(){const box=$("#mems");box.innerHTML="";const t0=dayStart(Date.now());let n=0;
+ [[7,"一周前"],[30,"一个月前"],[90,"三个月前"],[365,"一年前"]].forEach(([d,l])=>{const a=dayStart(new Date(t0).setDate(new Date(t0).getDate()-d));inRange(a,a+DAY).slice(0,1).forEach(e=>{n++;box.append(el("div",{class:"mem"},el("div",{class:"sub",text:l+"的今天"}),el("div",{text:MOODS[e.mood-1].f+" "+(e.emos.join("、")||MOODS[e.mood-1].t)+(e.note?"：":"")}),e.note?el("div",{class:"sub",text:e.note}):null))})});
+ $("#memCard").classList.toggle("hide",!n)}
+function maxStreak(){const ds=[...new Set(entries.map(e=>dayStart(e.t)))].sort((a,b)=>a-b);let best=0,run=0,prev=0;ds.forEach(d=>{run=(prev&&d-prev<=DAY*1.5)?run+1:1;prev=d;best=Math.max(best,run)});return best}
+function renderBadges(){const real=entries.filter(e=>!e.demo),ms=maxStreak(),tags=real.reduce((a,e)=>a+e.emos.length,0);
+ const B=[["🌱","第一条记录",real.length>=1],["🔥","连续 3 天",ms>=3],["🌟","连续 7 天",ms>=7],["🏔","连续 30 天",ms>=30],["📚","累计 20 条",real.length>=20],["🧘","完成 5 次练习",practice.length>=5],["🧩","整理过想法",thoughts.length>=1],["🔍","情绪觉察 30 次",tags>=30]];
+ const b=$("#badges");b.innerHTML="";B.forEach(([e,t,on])=>b.append(el("div",{class:"badge"+(on?" on":"")},el("span",{class:"e",text:e}),t)))}
+let calY=false;
+function renderYear(){const y=$("#year");y.innerHTML="";const today=dayStart(Date.now()),dow=(new Date(today).getDay()+6)%7,start=today-(dow+52*7)*DAY;
+ for(let i=0;i<53*7;i++){const a=start+i*DAY;if(a>today){y.append(el("div",{style:"opacity:0"}));continue}const v=avgOf(inRange(a,a+DAY)),d=new Date(a);y.append(el("div",{class:v?"lv"+Math.round(v):"",title:`${d.getMonth()+1}/${d.getDate()}`+(v?` 平均 ${v.toFixed(1)}`:"")}))}}
+function calUI(){$("#heat").classList.toggle("hide",calY);$("#year").classList.toggle("hide",!calY);$("#calW").classList.toggle("on",!calY);$("#calY").classList.toggle("on",calY);if(calY)renderYear()}
+$("#calW").onclick=()=>{calY=false;calUI()};$("#calY").onclick=()=>{calY=true;calUI()};
+
+const _render=render;
+render=function(){_render();renderCBT();renderMems();renderBadges();calUI();remindTick();greet()};
+render();checkLock();
+</script>
+</body>
+</html>
