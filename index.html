@@ -95,7 +95,7 @@ body{padding-top:calc(20px + env(safe-area-inset-top,0px));padding-bottom:calc(5
 .lock.hide,.year.hide,.heat.hide{display:none}
 .lock{position:fixed;inset:0;z-index:99;background:var(--bg);display:grid;place-items:center;padding:24px}
 .lock .box{width:100%;max-width:320px;text-align:center;display:flex;flex-direction:column;gap:12px}
-.lock input{text-align:center;font-size:22px;letter-spacing:.4em}
+.lock input{text-align:center;font-size:18px}
 .year{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:2px;overflow-x:auto;padding-bottom:6px}
 .year div{width:11px;height:11px;border-radius:2px;background:var(--line)}
 .year .lv1{background:var(--l1)}.year .lv2{background:var(--l2)}.year .lv3{background:var(--l3)}.year .lv4{background:var(--l4)}.year .lv5{background:var(--l5)}
@@ -198,11 +198,13 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
    <p class="sub">安装后像 App 一样打开，断网也能记录。数据保存在本机。</p>
    <div class="row" style="margin-top:10px"><button class="ghost" id="install">安装应用</button><span class="sub" id="installMsg"></span></div>
   </div>
-  <div class="card"><h2>我的档案与隐私锁</h2>
-   <p class="sub">不需要注册账号。档案和 PIN 只存在本机，用来给应用上锁。</p>
+  <div class="card"><h2>我的档案与本机加密</h2>
+   <p class="sub">不需要注册账号。设置口令后，本机保存的记录、同步令牌和 AI 密钥都会加密存储，每次打开需要输入口令。口令忘记后无法找回，本机数据只能清空，云端备份不受影响。</p>
    <label class="l" for="nick">昵称</label><input type="text" id="nick" maxlength="12" placeholder="怎么称呼你？">
-   <label class="l" for="pin">4 位数字 PIN（留空表示不设锁）</label><input type="password" id="pin" inputmode="numeric" maxlength="4" autocomplete="off">
-   <button class="primary" id="profSave">保存档案</button>
+   <button class="ghost" id="profSave" style="margin-top:8px">保存昵称</button>
+   <label class="l" for="vpass">加密口令（至少 8 位，建议用一句话）</label><input type="password" id="vpass" autocomplete="new-password">
+   <div class="row" style="margin-top:8px"><button class="ghost" id="vOn">启用 / 更换加密</button><button class="ghost" id="vOff">关闭加密</button></div>
+   <p class="sub" id="vState" style="margin-top:8px"></p>
   </div>
   <div class="card"><h2>每日提醒</h2>
    <p class="sub">静态网页无法在关闭后由服务器推送。这里提供三种方式：打开应用时提醒、已安装应用的后台提醒（部分 Chrome 支持）、以及写入手机日历的每日重复提醒（最可靠）。</p>
@@ -217,7 +219,7 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
    <p class="sub">用你自己的 GitHub 账号做存储：数据先在本机用口令加密，再存进一个私密 Gist。没有第三方服务器，没有人能读到内容。需要一个只勾选 gist 权限的个人访问令牌（GitHub → Settings → Developer settings → Personal access tokens）。</p>
    <label class="l" for="syTok">GitHub 令牌（仅 gist 权限）</label><input type="password" id="syTok" autocomplete="off">
    <label class="l" for="syPass">加密口令（忘记后无法恢复，请牢记）</label><input type="password" id="syPass" autocomplete="off">
-   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="syAuto"> 打开应用时自动同步（口令和令牌会保存在本机）</label>
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="syAuto"> 记住令牌与口令，解锁后自动同步（仅在启用本机加密后生效，加密保存）</label>
    <div class="row" style="margin-top:10px"><button class="ghost" id="syNow">立即同步</button><button class="ghost" id="syOff">断开并清除令牌</button></div>
    <p class="sub" id="syMsg" style="margin-top:8px"></p>
   </div>
@@ -252,9 +254,11 @@ const $=s=>document.querySelector(s);
 function el(tag,props,...kids){const e=document.createElement(tag);if(props)for(const k in props){if(k==="class")e.className=props[k];else if(k==="text")e.textContent=props[k];else if(k.startsWith("on"))e[k]=props[k];else e.setAttribute(k,props[k])}kids.flat().forEach(c=>c!=null&&e.append(c));return e}
 function lsGet(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
-let entries=lsGet("qy_entries",[]).map(e=>e.id?e:{...e,id:e.t+"-"+Math.random().toString(36).slice(2,6)});
-let thoughts=lsGet("qy_thoughts",[]),practice=lsGet("qy_practice",[]),tomb=lsGet("qy_tomb",{});
-const save=()=>{lsSet("qy_entries",entries);lsSet("qy_thoughts",thoughts);lsSet("qy_practice",practice);lsSet("qy_tomb",tomb)};
+const norm=a=>a.map(e=>e.id?e:{...e,id:e.t+"-"+Math.random().toString(36).slice(2,6)});
+let locked=!!lsGet("qy_vault",null),vaultKey=null,vaultSalt=null,secrets={},memKey="",chain=Promise.resolve();
+let entries=locked?[]:norm(lsGet("qy_entries",[]));
+let thoughts=locked?[]:lsGet("qy_thoughts",[]),practice=locked?[]:lsGet("qy_practice",[]),tomb=locked?{}:lsGet("qy_tomb",{});
+const save=()=>{if(locked)return;if(vaultKey){const snap=JSON.stringify({entries,thoughts,practice,tomb,secrets});chain=chain.then(()=>vaultWrite(snap)).catch(()=>{})}else{lsSet("qy_entries",entries);lsSet("qy_thoughts",thoughts);lsSet("qy_practice",practice);lsSet("qy_tomb",tomb)}};
 const DAY=864e5;
 const dayStart=t=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
 const avgOf=a=>a.length?a.reduce((x,y)=>x+y.mood,0)/a.length:null;
@@ -400,7 +404,7 @@ function renderReport(){const R=weekReport(rpW);lastReport=R;const b=$("#rpBody"
  document.querySelectorAll("#rpTabs button").forEach(x=>x.classList.toggle("on",+x.dataset.w===rpW));$("#aiOut").classList.add("hide")}
 document.querySelectorAll("#rpTabs button").forEach(b=>b.onclick=()=>{rpW=+b.dataset.w;renderReport()});
 $("#rpCopy").onclick=async()=>{const t="晴一日记 · 情绪周报\n"+lastReport.paras.join("\n");try{await navigator.clipboard.writeText(t);$("#rpCopy").textContent="已复制 ✓"}catch(e){const ta=el("textarea",{});ta.value=t;$("#rpBody").append(ta);ta.select();$("#rpCopy").textContent="请手动复制"}setTimeout(()=>$("#rpCopy").textContent="复制周报",2000)};
-$("#rpAI").onclick=async()=>{const cfg=lsGet("qy_ai",null),out=$("#aiOut"),btn=$("#rpAI");
+$("#rpAI").onclick=async()=>{const cfg=getAI(),out=$("#aiOut"),btn=$("#rpAI");
  if(!cfg||!cfg.key||!cfg.ok){$("#aiHint").textContent="还没配置 AI。到「设置」填写你自己的接口和密钥，并勾选数据发送确认。下方是本地生成的周报，不需要联网。";return}
  if(!lastReport.es.length){$("#aiHint").textContent="这段时间没有记录，没法复盘。";return}
  btn.disabled=true;btn.textContent="生成中…";out.classList.remove("hide");out.textContent="正在整理你这一周的情绪……";
@@ -435,9 +439,12 @@ $("#vol").oninput=e=>{if(Snd.master)Snd.master.gain.value=e.target.value/100};
 function alertHtml(box){box.classList.toggle("hide",!lowAlertNeeded());if(lowAlertNeeded())box.textContent="最近几天你的心情一直偏低。这很不容易，也不是你的错。可以先试一个小练习，或者找信任的人聊聊。如果感到难以承受，请拨打全国心理援助热线 12356，紧急情况请拨打 120。"}
 
 /* ---------- 设置与数据 ---------- */
-const cfg0=lsGet("qy_ai",{});$("#aiBase").value=cfg0.base||"";$("#aiModel").value=cfg0.model||"";$("#aiKey").value=cfg0.key||"";$("#aiOk").checked=!!cfg0.ok;
-$("#aiSave").onclick=()=>{const base=$("#aiBase").value.trim()||"https://api.openai.com/v1";lsSet("qy_ai",{base,model:$("#aiModel").value.trim(),key:$("#aiKey").value.trim(),ok:$("#aiOk").checked});$("#meMsg").textContent="AI 设置已保存到本浏览器。"};
-$("#exp").onclick=()=>{const u=URL.createObjectURL(new Blob([JSON.stringify({app:"qingyi",entries},null,1)],{type:"application/json"}));const a=el("a",{href:u,download:"qingyi-backup.json"});document.body.append(a);a.click();a.remove();$("#meMsg").textContent=`已导出 ${entries.length} 条记录。若浏览器没有下载，请改用普通浏览器标签打开本页再试。`};
+const getAI=()=>{const c=lsGet("qy_ai",{});return{base:c.base||"https://api.openai.com/v1",model:c.model||"",ok:!!c.ok,key:(secrets.ai&&secrets.ai.key)||memKey}};
+function initAIUI(){const c=lsGet("qy_ai",{});$("#aiBase").value=c.base||"";$("#aiModel").value=c.model||"";$("#aiOk").checked=!!c.ok;$("#aiKey").value=getAI().key}
+$("#aiSave").onclick=()=>{const base=$("#aiBase").value.trim()||"https://api.openai.com/v1",key=$("#aiKey").value.trim();lsSet("qy_ai",{base,model:$("#aiModel").value.trim(),ok:$("#aiOk").checked});memKey=key;
+ if(vaultKey){if(key)secrets.ai={key};else delete secrets.ai;save();$("#meMsg").textContent="AI 设置已保存，密钥已加密存放在本机。"}else $("#meMsg").textContent="AI 设置已保存。未启用本机加密，密钥只在本次打开期间有效，不会写入磁盘。"};
+initAIUI();
+$("#exp").onclick=()=>{const u=URL.createObjectURL(new Blob([JSON.stringify({app:"qingyi",entries},null,1)],{type:"application/json"}));const a=el("a",{href:u,download:"qingyi-backup.json"});document.body.append(a);a.click();a.remove();$("#meMsg").textContent=`已导出 ${entries.length} 条记录。备份文件没有加密，请妥善保管。若浏览器没有下载，请改用普通浏览器标签打开本页再试。`};
 $("#impBtn").onclick=()=>$("#imp").click();
 $("#imp").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result),arr=Array.isArray(j)?j:j.entries;if(!Array.isArray(arr))throw 0;const ids=new Set(entries.map(x=>x.id));let n=0;arr.forEach(x=>{if(x&&x.mood>=1&&x.mood<=5&&x.t&&!ids.has(x.id)){entries.push({id:x.id||x.t+"-"+Math.random().toString(36).slice(2,6),t:+x.t,mood:+x.mood,emos:x.emos||[],trigs:x.trigs||[],note:x.note||""});n++}});entries.sort((a,b)=>b.t-a.t);save();render();$("#meMsg").textContent=`导入完成，新增 ${n} 条。`}catch(err){$("#meMsg").textContent="文件格式不正确。"}};r.readAsText(f);e.target.value=""};
 let armClr=false;$("#clr").onclick=()=>{if(!armClr){armClr=true;$("#clr").textContent="再点一次确认清空";setTimeout(()=>{armClr=false;$("#clr").textContent="清空全部"},3000)}else{entries=[];save();armClr=false;$("#clr").textContent="清空全部";render();$("#meMsg").textContent="已清空全部记录。"}};
@@ -450,7 +457,7 @@ function render(){renderList();renderInsight();renderCare();alertHtml($("#lowAle
  $("#streak").textContent=n?`已连续记录 ${n} 天`:""}
 render();renderNow();
 </script>
-<div class="lock hide" id="lock"><div class="box"><h1>晴一日记</h1><p class="sub" id="lockHi">输入 PIN 解锁</p><input type="password" id="lockIn" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="PIN"><p class="sub" id="lockMsg"></p><button class="ghost" id="lockForget">忘记 PIN</button></div></div>
+<div class="lock hide" id="lock"><div class="box"><h1>晴一日记</h1><p class="sub" id="lockHi">输入口令解锁</p><input type="password" id="lockIn" autocomplete="current-password" aria-label="口令"><button class="primary" id="lockGo" style="margin-top:0">解锁</button><p class="sub" id="lockMsg"></p><button class="ghost" id="lockForget">忘记口令</button></div></div>
 <script>
 /* ===== v3：PWA、提醒、加密云同步、PIN 锁、想法整理、往日今天、成就、年度像素图 ===== */
 const prefs0=()=>lsGet("qy_prefs",{});
@@ -460,18 +467,32 @@ const b64=u=>{let s="";for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.app
 const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 async function sha(s){return b64(new Uint8Array(await crypto.subtle.digest("SHA-256",enc.encode(s))))}
 
-/* --- PIN 锁 --- */
-async function checkLock(){const p=prefs0();if(!p.pin)return;const L=$("#lock");L.classList.remove("hide");$("#lockHi").textContent=(p.nick?p.nick+"，":"")+"输入 PIN 解锁";
- $("#lockIn").value="";$("#lockIn").focus();
- $("#lockIn").oninput=async e=>{if(e.target.value.length===4){if(await sha(p.salt+e.target.value)===p.pin){L.classList.add("hide")}else{$("#lockMsg").textContent="PIN 不对，再试一次";e.target.value=""}}}}
-let armForget=false;$("#lockForget").onclick=()=>{if(!armForget){armForget=true;$("#lockMsg").textContent="再点一次将清空本机全部数据（云端备份不受影响）";return}
- try{localStorage.clear()}catch(e){}location.reload()};
-$("#profSave").onclick=async()=>{const p=prefs0();p.nick=$("#nick").value.trim();const pin=$("#pin").value.trim();
- if(pin){if(!/^\d{4}$/.test(pin)){$("#meMsg").textContent="PIN 需要是 4 位数字。";return}p.salt=Math.random().toString(36).slice(2);p.pin=await sha(p.salt+pin)}else{delete p.pin;delete p.salt}
- savePrefs(p);$("#pin").value="";$("#meMsg").textContent=pin?"档案已保存，下次打开需要输入 PIN。":"档案已保存，未设置锁。";greet()};
+/* --- 本机加密（口令 → PBKDF2 → AES-GCM），令牌和密钥只存在加密保险箱或内存里 --- */
+async function deriveKey(pass,salt){const m=await crypto.subtle.importKey("raw",enc.encode(pass),"PBKDF2",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},m,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}
+async function vaultWrite(snap){const iv=crypto.getRandomValues(new Uint8Array(12)),ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},vaultKey,enc.encode(snap)));lsSet("qy_vault",{v:1,salt:b64(vaultSalt),iv:b64(iv),ct:b64(ct)})}
+function vState(){$("#vState").textContent=vaultKey?"本机数据：已加密 ✓":"本机数据：未加密。能打开这个浏览器的人都能读到记录。"}
+(function scrub(){let moved=false;const a=lsGet("qy_ai",null);if(a&&a.key){delete a.key;lsSet("qy_ai",a);moved=true}const p=prefs0();if(p.sync&&(p.sync.tok||p.sync.pass||p.sync.auto)){delete p.sync.tok;delete p.sync.pass;delete p.sync.auto;moved=true}if(p.pin||p.salt){delete p.pin;delete p.salt;moved=true}if(moved){savePrefs(p);setTimeout(()=>{$("#meMsg").textContent="安全升级：旧版保存在本机的明文令牌、密钥和 PIN 已清除。如需记住它们，请先启用本机加密。"},0)}})();
 function greet(){const n=prefs0().nick;$("#greet").textContent=n?`${n}，记下此刻，轻轻接住自己`:"记下此刻，轻轻接住自己"}
 $("#nick").value=prefs0().nick||"";
-
+$("#profSave").onclick=()=>{const p=prefs0();p.nick=$("#nick").value.trim();savePrefs(p);$("#meMsg").textContent="昵称已保存。";greet()};
+$("#vOn").onclick=async()=>{const pass=$("#vpass").value;if(locked)return;if(pass.length<8){$("#meMsg").textContent="口令至少 8 位。";return}
+ $("#vOn").disabled=true;try{vaultSalt=crypto.getRandomValues(new Uint8Array(16));vaultKey=await deriveKey(pass,vaultSalt);if(memKey)secrets.ai={key:memKey};
+  await vaultWrite(JSON.stringify({entries,thoughts,practice,tomb,secrets}));["qy_entries","qy_thoughts","qy_practice","qy_tomb"].forEach(k=>localStorage.removeItem(k));
+  $("#vpass").value="";$("#meMsg").textContent="已启用本机加密。以后每次打开需要输入这个口令，请牢记。"}catch(e){vaultKey=null;$("#meMsg").textContent="启用失败："+e.message}$("#vOn").disabled=false;vState()};
+let armOff=false;$("#vOff").onclick=()=>{if(!vaultKey){$("#meMsg").textContent="当前没有启用加密。";return}
+ if(!armOff){armOff=true;$("#vOff").textContent="再点一次确认关闭";setTimeout(()=>{armOff=false;$("#vOff").textContent="关闭加密"},3000);return}
+ armOff=false;$("#vOff").textContent="关闭加密";const snap=secrets;vaultKey=null;secrets={};save();localStorage.removeItem("qy_vault");secrets={};$("#meMsg").textContent="已关闭加密，记录改为明文保存。令牌和密钥不再写入磁盘。";vState()};
+let fails=0,until=0;
+async function tryUnlock(){const m=$("#lockMsg");if(Date.now()<until){m.textContent="尝试次数过多，请 "+Math.ceil((until-Date.now())/1000)+" 秒后再试";return}
+ const pass=$("#lockIn").value;if(!pass)return;
+ try{const v=lsGet("qy_vault",null),salt=unb64(v.salt),key=await deriveKey(pass,salt);
+  const d=JSON.parse(dec.decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(v.iv)},key,unb64(v.ct))));
+  vaultKey=key;vaultSalt=salt;entries=norm(d.entries||[]);thoughts=d.thoughts||[];practice=d.practice||[];tomb=d.tomb||{};secrets=d.secrets||{};locked=false;fails=0;
+  $("#lock").classList.add("hide");$("#lockIn").value="";m.textContent="";afterUnlock()}
+ catch(e){fails++;m.textContent="口令不对";$("#lockIn").value="";if(fails>=5)until=Date.now()+Math.min(300000,Math.pow(2,fails-5)*5000)}}
+$("#lockGo").onclick=tryUnlock;$("#lockIn").onkeydown=e=>{if(e.key==="Enter")tryUnlock()};
+let armForget=false;$("#lockForget").onclick=()=>{if(!armForget){armForget=true;$("#lockMsg").textContent="再点一次将清空本机全部数据（云端备份不受影响）";return}try{localStorage.clear()}catch(e){}location.reload()};
+function afterUnlock(){initSyncUI();initAIUI();vState();render();const s=secrets.sync;if(s&&s.auto&&s.tok&&s.pass)setTimeout(()=>syncNow(true),1200)}
 /* --- PWA --- */
 let deferred=null;
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferred=e;$("#installMsg").textContent="可以安装"});
@@ -487,7 +508,7 @@ function todayRemindMin(p){if(p.mode!=="random")return remMins(p.t);const k=new 
 async function syncPrefsToSW(){try{const r=prefs0().rem;if(!("caches"in self)||!r)return;const c=await caches.open("qingyi-prefs");await c.put("prefs",new Response(JSON.stringify({on:!!r.on,min:todayRemindMin(r),text:"花一分钟，记下此刻的心情吧。",last:r.last||""})))}catch(e){}}
 async function notify(body){const o={body,icon:"icon-192.png",tag:"daily"};try{if(swReg&&Notification.permission==="granted"){await swReg.showNotification("晴一日记",o);return true}if(Notification.permission==="granted"){new Notification("晴一日记",o);return true}}catch(e){}return false}
 const hasToday=()=>entries.some(e=>dayStart(e.t)===dayStart(Date.now()));
-function remindTick(){const p=prefs0(),r=p.rem;if(!r||!r.on)return;const now=new Date(),mins=now.getHours()*60+now.getMinutes(),due=mins>=todayRemindMin(r);
+function remindTick(){const p=prefs0(),r=p.rem;if(locked||!r||!r.on)return;const now=new Date(),mins=now.getHours()*60+now.getMinutes(),due=mins>=todayRemindMin(r);
  const bar=$("#remindBar");const show=due&&!hasToday();bar.classList.toggle("hide",!show);if(show)bar.textContent="今天还没有记录。花一分钟，记下此刻的心情吧。";
  if(show&&r.last!==now.toDateString()){r.last=now.toDateString();savePrefs({...prefs0(),rem:r});notify("花一分钟，记下此刻的心情吧。");syncPrefsToSW()}}
 function loadRem(){const r=prefs0().rem||{};$("#remOn").checked=!!r.on;$("#remMode").value=r.mode||"fixed";$("#remT").value=r.t||"21:00";$("#remT2").value=r.t2||"22:30";remModeUI()}
@@ -525,12 +546,13 @@ async function syncNow(silent){if(syncing)return;const tok=$("#syTok").value.tri
    if(txt){let r;try{r=await decrypt(txt,pass)}catch(e){throw new Error("口令不对，或云端数据已损坏")}const before=entries.length+thoughts.length+practice.length;applyMerge(r);pulled=entries.length+thoughts.length+practice.length-before}}
   const body=await encrypt(snapshot(),pass),payload={description:"qingyi-sync",public:false,files:{"qingyi.json":{content:body}}};
   if(gid)await ghJson("/gists/"+gid,{method:"PATCH",body:JSON.stringify(payload)},tok);else gid=(await ghJson("/gists",{method:"POST",body:JSON.stringify(payload)},tok)).id;
-  const p=prefs0();p.sync={gid,auto:$("#syAuto").checked,tok:$("#syAuto").checked?tok:"",pass:$("#syAuto").checked?pass:"",last:Date.now()};savePrefs(p);
+  const p=prefs0();p.sync={gid,last:Date.now()};savePrefs(p);if(vaultKey&&$("#syAuto").checked){secrets.sync={tok,pass,auto:true};save()}else if(secrets.sync){delete secrets.sync;save()}
   msg(`同步完成：从云端合并了 ${Math.max(pulled,0)} 条新数据，已加密上传。时间 ${fmt(Date.now())}`);render()}
  catch(e){msg("同步失败："+e.message)}syncing=false}
 $("#syNow").onclick=()=>syncNow(false);
-$("#syOff").onclick=()=>{const p=prefs0();delete p.sync;savePrefs(p);$("#syTok").value="";$("#syPass").value="";$("#syAuto").checked=false;$("#syMsg").textContent="已断开，本机不再保存令牌和口令。云端的加密数据仍保留在你的 Gist 里。"};
-{const s=prefs0().sync;if(s){$("#syAuto").checked=!!s.auto;if(s.auto){$("#syTok").value=s.tok||"";$("#syPass").value=s.pass||"";if(s.tok&&s.pass)setTimeout(()=>syncNow(true),1500)}if(s.last)$("#syMsg").textContent="上次同步："+fmt(s.last)}}
+$("#syOff").onclick=()=>{const p=prefs0();delete p.sync;savePrefs(p);delete secrets.sync;save();$("#syTok").value="";$("#syPass").value="";$("#syAuto").checked=false;$("#syMsg").textContent="已断开，本机不再保留令牌和口令。云端的加密数据仍保留在你的 Gist 里。"};
+function initSyncUI(){const s=secrets.sync;$("#syAuto").checked=!!(s&&s.auto);if(s){$("#syTok").value=s.tok||"";$("#syPass").value=s.pass||""}const l=(prefs0().sync||{}).last;if(l)$("#syMsg").textContent="上次同步："+fmt(l)}
+initSyncUI();
 
 /* --- 想法整理（CBT） --- */
 const DIST=["非黑即白","灾难化","读心术","过度概括","情绪化推理","应该思维","个人化","贴标签","忽略积极面"];
@@ -561,7 +583,7 @@ $("#calW").onclick=()=>{calY=false;calUI()};$("#calY").onclick=()=>{calY=true;ca
 
 const _render=render;
 render=function(){_render();renderCBT();renderMems();renderBadges();calUI();remindTick();greet()};
-render();checkLock();
+vState();render();if(locked){$("#lock").classList.remove("hide");$("#lockHi").textContent=(prefs0().nick?prefs0().nick+"，":"")+"输入口令解锁";$("#lockIn").focus()}
 </script>
 </body>
 </html>
