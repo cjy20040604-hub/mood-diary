@@ -104,6 +104,21 @@ body{padding-top:calc(20px + env(safe-area-inset-top,0px));padding-bottom:calc(5
 .delta{color:var(--accent);font-weight:700}
 .rng{display:flex;gap:10px;align-items:center}.rng output{min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
 details summary{cursor:pointer;color:var(--accent);font-size:13px}
+.hdr-r{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.lock.scroll{place-items:start center;overflow-y:auto}
+#consent{z-index:100}#support{z-index:101}
+.box.sup{text-align:left;max-width:440px;padding-block:24px}
+.box.sup h1,.box.sup h2{margin:0}
+.supRow{display:flex;justify-content:space-between;gap:12px;align-items:baseline;border-top:1px solid var(--line);padding:10px 0}
+.supRow:first-child{border-top:0}
+.supRow b{display:block}.supRow a{font-size:18px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.supSteps,.clist{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+label.row.sub{align-items:flex-start;flex-wrap:nowrap;gap:8px}label.row.sub input{margin-top:4px;flex:none}
+a{color:var(--accent)}
+.foot{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:4px}
+.linkbtn{background:none;border:0;color:var(--accent);font:inherit;cursor:pointer;padding:0;text-decoration:underline}
+#delPanel ul{margin:6px 0;padding-left:20px}
+.alert b{font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -111,7 +126,7 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
 <div class="wrap">
  <header>
   <div><h1>晴一日记</h1><p class="sub" id="greet">记下此刻，轻轻接住自己</p></div>
-  <span class="sub" id="streak"></span>
+  <div class="hdr-r"><span class="sub" id="streak"></span><button class="ghost" id="helpBtn">需要帮助</button></div>
  </header>
  <nav role="tablist" aria-label="主导航">
   <button role="tab" data-t="log" aria-selected="true">今日</button>
@@ -213,12 +228,14 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
    <select id="remMode"><option value="fixed">每天固定时间</option><option value="random">时间窗内随机一次（避免形成习惯性忽略）</option></select>
    <div class="row" style="margin-top:8px"><label class="sub" for="remT">时间</label><input type="time" id="remT" value="21:00" style="width:auto"><label class="sub" for="remT2" id="remT2l">到</label><input type="time" id="remT2" value="22:30" style="width:auto"></div>
    <div class="row" style="margin-top:10px"><button class="ghost" id="remSave">保存并授权通知</button><button class="ghost" id="remIcs">写入日历（.ics）</button><button class="ghost" id="remTest">发送本地测试提醒</button></div>
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="pushAgree"> 我同意：开启服务器推送需要把浏览器推送地址、提醒时间和时区存储在 Supabase（爱尔兰）服务器上，不包含任何日记内容。</label>
    <div class="row" style="margin-top:8px"><button class="ghost" id="pushOn">开启服务器推送</button><button class="ghost" id="pushOff">关闭服务器推送</button><button class="ghost" id="pushTest">服务器推送测试</button></div>
    <p class="sub" id="pushState" style="margin-top:6px"></p>
    <p class="sub" id="remMsg" style="margin-top:8px"></p>
   </div>
   <div class="card"><h2>云端账号与同步</h2>
    <p class="sub">用邮箱注册账号，在多台设备间同步。数据先在本机用「云端加密口令」加密，服务器上只有密文，开发者和云服务商都读不到内容。忘记加密口令后数据无法恢复。</p>
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="sbAgree"> 我同意把加密后的日记数据和登录邮箱存储在 Supabase 位于爱尔兰（欧盟）的服务器上。日记在本机加密，服务器只保存密文；邮箱用于登录。</label>
    <div id="sbOut">
     <label class="l" for="sbEmail">邮箱</label><input type="text" id="sbEmail" autocomplete="username" inputmode="email">
     <label class="l" for="sbPw">账号密码（至少 8 位）</label><input type="password" id="sbPw" autocomplete="current-password">
@@ -232,7 +249,7 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
   </div>
   <div class="card"><h2>进阶：GitHub Gist 同步（可选）</h2>
    <p class="sub">用你自己的 GitHub 账号做存储：数据先在本机用口令加密，再存进一个私密 Gist。没有第三方服务器，没有人能读到内容。需要一个只勾选 gist 权限的个人访问令牌（GitHub → Settings → Developer settings → Personal access tokens）。</p>
-   <p class="sub">不想注册账号的话，也可以把加密数据存进你自己的 GitHub 私密 Gist。</p><label class="l" for="syTok">GitHub 令牌（仅 gist 权限）</label><input type="password" id="syTok" autocomplete="new-password">
+   <p class="sub">不想注册账号的话，也可以把加密数据存进你自己的 GitHub 私密 Gist。</p><label class="row sub" style="margin-top:10px"><input type="checkbox" id="syAgree"> 我同意把加密后的日记数据存储在 GitHub（美国）的私密 Gist 中。</label><label class="l" for="syTok">GitHub 令牌（仅 gist 权限）</label><input type="password" id="syTok" autocomplete="new-password">
    <label class="l" for="syPass">加密口令（忘记后无法恢复，请牢记）</label><input type="password" id="syPass" autocomplete="new-password">
    <label class="row sub" style="margin-top:10px"><input type="checkbox" id="syAuto"> 记住令牌与口令，解锁后自动同步（仅在启用本机加密后生效，加密保存）</label>
    <div class="row" style="margin-top:10px"><button class="ghost" id="syNow">立即同步</button><button class="ghost" id="syOff">断开并清除令牌</button></div>
@@ -243,17 +260,52 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
    <label class="l" for="aiBase">接口地址</label><input type="text" id="aiBase" placeholder="https://api.openai.com/v1">
    <label class="l" for="aiModel">模型名</label><input type="text" id="aiModel" placeholder="例如 gpt-4o-mini">
    <label class="l" for="aiKey">API Key</label><input type="password" id="aiKey" autocomplete="new-password">
-   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiOk"> 我知道点击后，周报与记录文字会发送到上述服务</label>
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiOk"> 我同意把本周统计和部分日记文字发送到上面填写的 AI 服务（日记属于敏感个人信息）。含有危机相关内容时不会发送</label>
    <button class="primary" id="aiSave">保存设置</button>
   </div>
   <div class="card"><h2>我的数据</h2>
-   <p class="sub">所有记录只保存在这台设备的浏览器里。换设备或清除浏览器数据前，请先导出备份。</p>
-   <div class="row" style="margin-top:10px"><button class="ghost" id="exp">导出 JSON 备份</button><button class="ghost" id="impBtn">导入备份</button><button class="ghost" id="clrDemo">清除示例数据</button><button class="ghost" id="clr">清空全部</button></div>
+   <p class="sub">记录默认只保存在这台设备的浏览器里。换设备或清除浏览器数据前，请先导出备份。你可以随时删除全部数据，删除即视为撤回同意。详见<a href="privacy.html">《隐私政策与使用条款》</a>。</p>
+   <div class="row" style="margin-top:10px"><button class="ghost" id="exp">导出 JSON 备份</button><button class="ghost" id="impBtn">导入备份</button><button class="ghost" id="clrDemo">清除示例数据</button><button class="ghost" id="delOpen">删除我的全部数据</button></div>
+   <div id="delPanel" class="alert hide" style="margin-top:10px">
+    <b>将要删除：</b><ul id="delList"></ul>
+    <label class="l" for="delConfirm" style="margin-top:6px">删除后无法恢复。请输入“删除”两个字确认</label><input type="text" id="delConfirm" autocomplete="off">
+    <div class="row" style="margin-top:8px"><button class="ghost" id="delGo" disabled>永久删除</button><button class="ghost" id="delCancel">取消</button></div>
+    <p class="sub" id="delMsg" style="margin-top:6px" aria-live="polite"></p>
+   </div>
    <input type="file" id="imp" accept="application/json" class="hide">
    <p class="sub" id="meMsg" style="margin-top:8px"></p>
   </div>
  </section>
+ <footer class="foot sub"><a href="privacy.html">隐私政策与使用条款</a><span aria-hidden="true">·</span><button class="linkbtn" id="helpFoot">需要帮助</button></footer>
 </div>
+
+<div class="lock scroll hide" id="consent" role="dialog" aria-modal="true" aria-labelledby="cTitle"><div class="box sup">
+ <h1 id="cTitle">晴一日记</h1>
+ <p class="sub">开始之前，请花 30 秒了解这几件事：</p>
+ <ul class="clist">
+  <li>这是情绪记录和自我关怀工具，<b>不是医疗服务</b>，不能代替诊断和治疗。</li>
+  <li>你的记录<b>默认只保存在这台设备上</b>。只有你主动开启云同步、服务器推送或 AI 复盘时，相关数据才会发送到对应服务，开启前会再次征得你的同意。</li>
+  <li>心情和日记属于<b>敏感个人信息</b>。你可以随时导出，或在「设置 → 我的数据」里删除全部数据。</li>
+  <li>如果你有伤害自己的想法，请立即拨打心理援助热线 <b>12356</b>；有立即危险时拨打 <b>120</b> 或 <b>110</b>。</li>
+ </ul>
+ <label class="row sub"><input type="checkbox" id="cAgree"> <span>我已阅读并同意<a href="privacy.html" target="_blank" rel="noopener">《隐私政策与使用条款》</a>，同意晴一日记按其中说明处理我的心情、日记等敏感个人信息。</span></label>
+ <label class="row sub"><input type="checkbox" id="cAge"> <span>我已年满 14 周岁；或未满 14 周岁，已取得父母或其他监护人的同意。</span></label>
+ <button class="primary" id="cOk" disabled>同意并开始</button>
+ <button class="ghost" id="cNo">不同意</button>
+ <p class="sub" id="cMsg" aria-live="polite"></p>
+</div></div>
+<div class="lock scroll hide" id="support" role="dialog" aria-modal="true" aria-labelledby="supTitle"><div class="box sup">
+ <h2 id="supTitle">需要帮助的时候</h2>
+ <p id="supLead"></p>
+ <div id="supList"></div>
+ <ul class="supSteps sub">
+  <li>有立即的危险时，请拨打 120 或 110，或去最近的医院急诊。</li>
+  <li>联系一个你信任的人，告诉 TA 你现在的感受，或请 TA 过来陪你。</li>
+  <li>把可能伤害自己的东西放远一点，待在有人的地方。</li>
+ </ul>
+ <p class="sub">号码如有调整，以官方公布为准。</p>
+ <button class="primary" id="supOk">我知道了</button>
+</div></div>
 
 <script>
 const MOODS=[{v:1,f:"😣",t:"很糟"},{v:2,f:"😔",t:"低落"},{v:3,f:"😐",t:"一般"},{v:4,f:"🙂",t:"不错"},{v:5,f:"😄",t:"很好"}];
@@ -266,6 +318,19 @@ const PROMPTS=["今天最让你消耗的一件事是什么？","此刻身体哪�
 const QUOTES=["你不需要一直坚强，也值得被温柔对待。","情绪像天气，会来也会走。","今天做到这样，已经很好了。","先照顾好自己，再去应付世界。"];
 const WD=["周日","周一","周二","周三","周四","周五","周六"];
 const $=s=>document.querySelector(s);
+/* ---------- 安全：危机识别与求助 ---------- */
+const SUPPORT=[["全国心理援助热线","12356","心理健康咨询与危机干预"],["希望 24 热线","400-161-9995","心理危机干预"],["北京心理危机研究与干预中心","010-82951332","心理危机干预"],["急救 / 报警","120 / 110","有立即危险时"]];
+// 宁可多提示一次，也不漏掉；同时排除“笑死”“想死你了”“跳楼价”这类日常说法
+const RISK_RE=[/自杀|轻生|自残|自伤|割腕|上吊|烧炭|吞药|遗书|一了百了/,/不想活|活不下去|活着(没|没有)(意思|意义)|不如死了|死了算了|想去死|我想死|好想死|真想死/,/想死(?!你|您|他|她|它|我了|人了)/,/伤害自己|结束(我的|自己的)?生命|了结(自己|生命)|消失算了|没有我.{0,6}更好/,/跳楼(?!价|大甩卖|甩卖)|跳河|跳桥/,/(一把|很多|大量|攒了?).{0,4}安眠药|安眠药.{0,6}(一把|很多|大量|全吃|都吃)/,/kill myself|suicid|self[- ]?harm|end my life|want to die/i];
+const isRisk=t=>!!t&&RISK_RE.some(r=>r.test(String(t)));
+let supBack=null;
+function openSupport(kind){const risk=kind==="risk";$("#supTitle").textContent=risk?"你现在安全吗？":"需要帮助的时候";
+ $("#supLead").textContent=risk?"你写下的内容让人有些担心。谢谢你愿意把它写出来。如果你有伤害自己的想法，请现在就联系下面任何一个：":"如果此刻很难受，不需要一个人扛。下面这些地方都可以求助：";
+ $("#supOk").textContent=risk?"我现在是安全的":"我知道了";supBack=document.activeElement;$("#support").classList.remove("hide");setTimeout(()=>$("#supOk").focus(),0)}
+function closeSupport(){$("#support").classList.add("hide");if(supBack&&supBack.focus)supBack.focus()}
+SUPPORT.forEach(([n,num,d])=>$("#supList").append(el("div",{class:"supRow"},el("div",null,el("b",{text:n}),el("span",{class:"sub",text:d})),el("div",null,...num.split(" / ").map((x,i)=>[i?el("span",{text:" / "}):null,el("a",{href:"tel:"+x.replace(/-/g,""),text:x})]).flat()))));
+$("#supOk").onclick=closeSupport;$("#helpBtn").onclick=()=>openSupport("help");$("#helpFoot").onclick=()=>openSupport("help");
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#support").classList.contains("hide"))closeSupport()});
 function el(tag,props,...kids){const e=document.createElement(tag);if(props)for(const k in props){if(k==="class")e.className=props[k];else if(k==="text")e.textContent=props[k];else if(k.startsWith("on"))e[k]=props[k];else e.setAttribute(k,props[k])}kids.flat().forEach(c=>c!=null&&e.append(c));return e}
 function lsGet(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
@@ -363,9 +428,11 @@ function recsFor(k){const r=RECS[k],m=MEDS.find(x=>x.id===r.med),x=EXS.find(x=>x
 $("#save").onclick=()=>{
  if(!S.mood){$("#save").textContent="请先选择一个心情";setTimeout(()=>$("#save").textContent="记录这一刻",1500);return}
  const e={id:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:Date.now(),mood:S.mood,emos:[...S.emos],trigs:[...S.trigs],note:$("#note").value.trim()};
+ if(isRisk(e.note))e.risk=true;
  entries.unshift(e);save();if(typeof pushDone==="function")pushDone();
  const k=kindOf(e),a=$("#after");a.hidden=false;a.innerHTML="";
- a.append(el("h2",{text:"已记录 ✓"}),el("p",{style:"margin:0 0 4px",text:(e.mood<=2?"听起来今天不太容易。":"谢谢你记下这一刻。")+(e.trigs.length?`看起来「${e.trigs[0]}」对你有影响。`:"")+"试试下面一个小练习："}),recsFor(k)[0]);
+ if(e.risk){a.append(el("h2",{text:"已记录"}),el("p",{style:"margin:0 0 8px",text:"谢谢你愿意写下来。你不需要一个人扛着，现在就可以找人说说。"}),el("div",{class:"row"},el("b",{text:"心理援助热线 12356"}),el("button",{class:"ghost",text:"查看求助方式",onclick:()=>openSupport("risk")})));openSupport("risk")}
+ else a.append(el("h2",{text:"已记录 ✓"}),el("p",{style:"margin:0 0 4px",text:(e.mood<=2?"听起来今天不太容易。":"谢谢你记下这一刻。")+(e.trigs.length?`看起来「${e.trigs[0]}」对你有影响。`:"")+"试试下面一个小练习："}),recsFor(k)[0]);
  S.mood=0;S.emos.clear();S.trigs.clear();$("#note").value="";document.querySelectorAll(".chip,.moods button").forEach(b=>b.setAttribute("aria-pressed","false"));render()};
 $("#filter").onchange=()=>{shown=6;renderList()};
 $("#search").oninput=()=>{shown=6;renderList()};
@@ -395,26 +462,34 @@ function renderHeat(){const box=$("#heat");box.innerHTML="";["一","二","三","
 function barRows(box,rows,cls,fmtR){box.innerHTML="";rows.forEach(r=>box.append(el("div",{class:"bar "+cls},el("span",{text:r.k}),el("span",null,el("i",{style:`width:${r.w}%`})),el("span",{text:fmtR(r)}))))}
 
 /* ---------- 周报（本地规则） ---------- */
+const MIN_N=3;
 function weekReport(w){const t0=dayStart(Date.now()),end=t0+DAY-w*7*DAY,start=end-7*DAY,es=inRange(start,end),prev=inRange(start-7*DAY,start);
- const R={es,paras:[],kind:null};
+ const R={es,paras:[],kind:null,note:""};
  if(!es.length){R.paras.push("这 7 天还没有记录。哪怕只记一句话，也能帮你看见自己的节奏。");return R}
  const avg=avgOf(es),days=new Set(es.map(e=>dayStart(e.t))).size;let p1=`这 7 天你有 ${days} 天留下了记录，共 ${es.length} 条，平均心情 ${avg.toFixed(1)} / 5。`;
- if(prev.length){const d=avg-avgOf(prev);p1+=Math.abs(d)<.2?"和前一周基本持平。":d>0?`比前一周高了 ${d.toFixed(1)}，在慢慢变好。`:`比前一周低了 ${(-d).toFixed(1)}，这一周可能更辛苦。`}
- R.paras.push(p1);
- const byDay={};es.forEach(e=>{const k=dayStart(e.t);(byDay[k]=byDay[k]||[]).push(e)});const ds=Object.entries(byDay).map(([k,v])=>({k:+k,v:avgOf(v),es:v})).sort((a,b)=>a.v-b.v);
- const fd=x=>{const d=new Date(x.k);return `${d.getMonth()+1}/${d.getDate()}（${WD[d.getDay()]}）`};
- if(ds.length>=2){const lo=ds[0],hi=ds[ds.length-1];R.paras.push(`最轻松的一天是 ${fd(hi)}，平均 ${hi.v.toFixed(1)}；最吃力的一天是 ${fd(lo)}，平均 ${lo.v.toFixed(1)}。`)}
- const ec={};es.forEach(e=>e.emos.forEach(x=>ec[x]=(ec[x]||0)+1));const et=Object.entries(ec).sort((a,b)=>b[1]-a[1]);
- if(et.length){const neg=et.filter(x=>NEG.includes(x[0])).reduce((a,x)=>a+x[1],0),tot=et.reduce((a,x)=>a+x[1],0);R.paras.push(`出现最多的情绪是 ${et.slice(0,3).map(x=>`${x[0]}（${x[1]}次）`).join("、")}，其中偏消耗的情绪占 ${Math.round(neg/tot*100)}%。`)}
- const tm={};es.forEach(e=>e.trigs.forEach(t=>{(tm[t]=tm[t]||{n:0,s:0});tm[t].n++;tm[t].s+=e.mood}));const tr=Object.entries(tm).map(([k,v])=>({k,n:v.n,a:v.s/v.n})).sort((a,b)=>a.a-b.a||b.n-a.n);
- if(tr.length){const t=tr[0];R.paras.push(`拉低心情最多的是「${t.k}」，出现 ${t.n} 次，平均心情 ${t.a.toFixed(1)}。`+(tr.length>1?`其次是「${tr[1].k}」。`:""))}
- const sl=es.filter(e=>e.trigs.includes("睡眠不足")),ns=es.filter(e=>!e.trigs.includes("睡眠不足"));if(sl.length&&ns.length)R.paras.push(`睡眠不足的 ${sl.length} 条记录平均 ${avgOf(sl).toFixed(1)}，其他记录平均 ${avgOf(ns).toFixed(1)}，睡眠和你的状态有明显关联。`);
- const wd={};es.forEach(e=>{const k=new Date(e.t).getDay();(wd[k]=wd[k]||[]).push(e)});const wl=Object.entries(wd).map(([k,v])=>({k:+k,v:avgOf(v)})).sort((a,b)=>a.v-b.v);if(wl.length>=3&&wl[0].v<=2.5)R.paras.push(`${WD[wl[0].k]}是你的低谷日，可以提前为它安排一点缓冲或奖励。`);
  const kinds={};es.forEach(e=>{const k=kindOf(e);kinds[k]=(kinds[k]||0)+1});R.kind=Object.entries(kinds).sort((a,b)=>b[1]-a[1])[0][0];
+ if(es.length<MIN_N){R.paras.push(p1+`再记 ${MIN_N-es.length} 条，这里会出现更具体的发现。`);R.note="记录太少时不下结论，避免误导。";return R}
+ if(prev.length>=MIN_N){const d=avg-avgOf(prev);p1+=Math.abs(d)<.3?"和前一周差不多。":d>0?`比前一周高了 ${d.toFixed(1)}。`:`比前一周低了 ${(-d).toFixed(1)}，这一周可能更辛苦一些。`}
+ R.paras.push(p1);
+ const byDay={};es.forEach(e=>{const k=dayStart(e.t);(byDay[k]=byDay[k]||[]).push(e)});const ds=Object.entries(byDay).map(([k,v])=>({k:+k,v:avgOf(v)})).sort((a,b)=>a.v-b.v);
+ const fd=x=>{const d=new Date(x.k);return `${d.getMonth()+1}/${d.getDate()}（${WD[d.getDay()]}）`};
+ if(ds.length>=3){const lo=ds[0],hi=ds[ds.length-1];if(hi.v-lo.v>=1)R.paras.push(`相对轻松的一天是 ${fd(hi)}，平均 ${hi.v.toFixed(1)}；相对吃力的一天是 ${fd(lo)}，平均 ${lo.v.toFixed(1)}。`)}
+ const ec={};es.forEach(e=>e.emos.forEach(x=>ec[x]=(ec[x]||0)+1));const et=Object.entries(ec).sort((a,b)=>b[1]-a[1]),tot=et.reduce((a,x)=>a+x[1],0);
+ if(tot>=MIN_N){const neg=et.filter(x=>NEG.includes(x[0])).reduce((a,x)=>a+x[1],0);R.paras.push(`出现最多的情绪是 ${et.slice(0,3).map(x=>`${x[0]}（${x[1]}次）`).join("、")}，偏消耗的情绪约占 ${Math.round(neg/tot*100)}%。`)}
+ const tm={};es.forEach(e=>e.trigs.forEach(t=>{(tm[t]=tm[t]||{n:0,s:0});tm[t].n++;tm[t].s+=e.mood}));
+ const tr=Object.entries(tm).map(([k,v])=>({k,n:v.n,a:v.s/v.n})).filter(t=>t.n>=2&&avg-t.a>=.5).sort((a,b)=>a.a-b.a);
+ if(tr.length){const t=tr[0];R.paras.push(`「${t.k}」可能在拉低你的心情：相关的 ${t.n} 条记录平均 ${t.a.toFixed(1)}，比本周整体低 ${(avg-t.a).toFixed(1)}。`)}
+ const sl=es.filter(e=>e.trigs.includes("睡眠不足")),ns=es.filter(e=>!e.trigs.includes("睡眠不足"));
+ if(sl.length>=2&&ns.length>=2&&avgOf(ns)-avgOf(sl)>=.8)R.paras.push(`睡眠不足时心情可能更低：这 ${sl.length} 条记录平均 ${avgOf(sl).toFixed(1)}，其他 ${ns.length} 条平均 ${avgOf(ns).toFixed(1)}。`+(es.length<10?"样本还少，先当作一个线索。":""));
+ if(w===0){const from=t0+DAY-56*DAY,dayAvg={};inRange(from,t0+DAY).forEach(e=>{const k=dayStart(e.t);(dayAvg[k]=dayAvg[k]||[]).push(e.mood)});
+  const g={};Object.entries(dayAvg).forEach(([k,v])=>{const wd=new Date(+k).getDay();(g[wd]=g[wd]||[]).push(v.reduce((a,b)=>a+b,0)/v.length)});
+  const wl=Object.entries(g).filter(([,v])=>v.length>=3).map(([k,v])=>({k:+k,n:v.length,v:v.reduce((a,b)=>a+b,0)/v.length})).sort((a,b)=>a.v-b.v);
+  const all=Object.values(dayAvg).map(v=>v.reduce((a,b)=>a+b,0)/v.length),allAvg=all.reduce((a,b)=>a+b,0)/(all.length||1);
+  if(wl.length>=4&&wl[0].v<=2.5&&allAvg-wl[0].v>=.8)R.paras.push(`过去 8 周里，${WD[wl[0].k]}的平均心情一直偏低（${wl[0].n} 天，平均 ${wl[0].v.toFixed(1)}），可以留意那天通常发生了什么。`)}
  const adv={anx:"紧绷感偏多：每天固定留 3 分钟做呼吸或着陆练习，比情绪爆发时再处理更有效。",sad:"低落偏多：先别要求自己振作，试试自我慈悲练习，并给一个信任的人发条消息。",tired:"疲惫偏多：优先保证睡眠和休息，把不紧急的事往后挪一挪。",ok:"整体比较平稳，把让你开心的事记下来，它们是你的情绪储备。"};
- R.paras.push("小建议："+adv[R.kind]);return R}
+ R.paras.push("小建议："+adv[R.kind]);R.note="以上是根据你的记录做的简单统计，不是诊断。记录越多，结论越可靠。";return R}
 let rpW=0,lastReport=null;
-function renderReport(){const R=weekReport(rpW);lastReport=R;const b=$("#rpBody");b.innerHTML="";R.paras.forEach(t=>b.append(el("p",{text:t})));
+function renderReport(){const R=weekReport(rpW);lastReport=R;const b=$("#rpBody");b.innerHTML="";R.paras.forEach(t=>b.append(el("p",{text:t})));if(R.note)b.append(el("p",{class:"sub",text:R.note}));
  if(R.kind){const r=RECS[R.kind],m=MEDS.find(x=>x.id===r.med);b.append(el("div",{class:"rec"},el("span",{class:"k",text:"推荐"}),el("div",{class:"x"},el("b",{text:m.title}),el("p",{text:"根据本周的"+KNAME[R.kind]+"为你选择"})),el("button",{class:"ghost",text:"去试试",onclick:()=>{goTab("care");Guide.start(m)}})))}
  document.querySelectorAll("#rpTabs button").forEach(x=>x.classList.toggle("on",+x.dataset.w===rpW));$("#aiOut").classList.add("hide")}
 document.querySelectorAll("#rpTabs button").forEach(b=>b.onclick=()=>{rpW=+b.dataset.w;renderReport()});
@@ -422,9 +497,10 @@ $("#rpCopy").onclick=async()=>{const t="晴一日记 · 情绪周报\n"+lastRepo
 $("#rpAI").onclick=async()=>{const cfg=getAI(),out=$("#aiOut"),btn=$("#rpAI");
  if(!cfg||!cfg.key||!cfg.ok){$("#aiHint").textContent="还没配置 AI。到「设置」填写你自己的接口和密钥，并勾选数据发送确认。下方是本地生成的周报，不需要联网。";return}
  if(!lastReport.es.length){$("#aiHint").textContent="这段时间没有记录，没法复盘。";return}
+ if(lastReport.es.some(e=>e.risk||isRisk(e.note))){out.classList.remove("hide");out.textContent="这一周的记录里有让人担心的内容，AI 复盘先暂停了，这些文字也不会发送出去。比起分析，现在更重要的是照顾好自己：如果你有伤害自己的想法，请拨打心理援助热线 12356，或联系身边信任的人。";$("#aiHint").textContent="";openSupport("risk");return}
  btn.disabled=true;btn.textContent="生成中…";out.classList.remove("hide");out.textContent="正在整理你这一周的情绪……";
  const notes=lastReport.es.filter(e=>e.note).slice(0,10).map(e=>`${fmt(e.t)} 心情${e.mood}/5 ${e.emos.join("、")}：${e.note.slice(0,80)}`).join("\n");
- try{const r=await fetch(cfg.base.replace(/\/$/,"")+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.key},body:JSON.stringify({model:cfg.model,temperature:.7,messages:[{role:"system",content:"你是温和、不说教的情绪陪伴者，不做医疗诊断。根据用户一周的情绪数据写一段 250 字以内的中文复盘：先共情，再指出 1–2 个规律，最后给 2 条具体、容易做到的小行动。不要使用列表符号，语气像朋友。"},{role:"user",content:"本地统计：\n"+lastReport.paras.join("\n")+"\n\n部分日记：\n"+(notes||"（无文字）")}]})});
+ try{const r=await fetch(cfg.base.replace(/\/$/,"")+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.key},body:JSON.stringify({model:cfg.model,temperature:.7,messages:[{role:"system",content:"你是温和、不说教的情绪陪伴者，不做医疗诊断。根据用户一周的情绪数据写一段 250 字以内的中文复盘：先共情，再指出 1–2 个规律，最后给 2 条具体、容易做到的小行动。不要使用列表符号，语气像朋友。不做诊断，不给药物或治疗建议。如果内容涉及自伤、自杀或其他危险，不要分析，只表达关心，并建议立即拨打心理援助热线 12356，有立即危险时拨打 120。"},{role:"user",content:"本地统计：\n"+lastReport.paras.join("\n")+"\n\n部分日记：\n"+(notes||"（无文字）")}]})});
   if(!r.ok)throw new Error("接口返回 "+r.status);const j=await r.json();out.textContent=j.choices[0].message.content.trim();$("#aiHint").textContent="以上由你配置的模型生成，仅供参考。"}
  catch(e){out.textContent="生成失败："+e.message+"。请检查接口地址、模型名和密钥，或确认该服务允许浏览器跨域访问。本地周报仍然可用。"}
  btn.disabled=false;btn.textContent="AI 个性化复盘"};
@@ -436,8 +512,8 @@ function renderInsight(){
  const m={};entries.forEach(e=>e.trigs.forEach(t=>{(m[t]=m[t]||{n:0,s:0});m[t].n++;m[t].s+=e.mood}));
  const rows=Object.entries(m).map(([k,v])=>({k,n:v.n,avg:v.s/v.n,low:5-v.s/v.n})).sort((a,b)=>b.low-a.low||b.n-a.n);
  if(rows.length)barRows($("#trigbars"),rows.map(r=>({...r,w:(r.low/4*100).toFixed(0)})),"",r=>`${r.n}次·${r.avg.toFixed(1)}`);else $("#trigbars").innerHTML='<p class="sub">记录时勾选触发因素，就能看到哪些事最影响你。</p>';
- const t=rows[0];$("#insightText").hidden=!t;
- if(t){let s=`你的「${t.k}」相关记录平均心情只有 ${t.avg.toFixed(1)}，是目前最需要关注的触发因素。`;const sl=entries.filter(e=>e.trigs.includes("睡眠不足"));if(sl.length>=2&&t.k!=="睡眠不足")s+=` 另外，睡眠不足出现 ${sl.length} 次，建议今晚早点休息。`;$("#insightText").textContent="💡 "+s}
+ const t=rows.find(r=>r.n>=2);$("#insightText").hidden=!t;
+ if(t){let s=`「${t.k}」可能是目前最值得留意的触发因素：相关的 ${t.n} 条记录平均心情 ${t.avg.toFixed(1)}。`;const sl=entries.filter(e=>e.trigs.includes("睡眠不足"));if(sl.length>=3&&t.k!=="睡眠不足")s+=` 另外，睡眠不足出现了 ${sl.length} 次，可以优先照顾睡眠。`;$("#insightText").textContent="💡 "+s}
  const ec={};entries.filter(e=>e.t>now-30*DAY).forEach(e=>e.emos.forEach(x=>ec[x]=(ec[x]||0)+1));const er=Object.entries(ec).map(([k,n])=>({k,n})).sort((a,b)=>b.n-a.n),mx=er[0]?er[0].n:1;
  if(er.length)barRows($("#emobars"),er.map(r=>({...r,w:(r.n/mx*100).toFixed(0)})),"a",r=>r.n+"次");else $("#emobars").innerHTML='<p class="sub">选择具体情绪后，这里显示构成。</p>';
  renderReport()}
@@ -451,7 +527,9 @@ function renderCare(){const e=entries[0],k=e?kindOf(e):"anx";
  const m=$("#meds");m.innerHTML="";MEDS.forEach(g=>m.append(guideRow(g)));const x=$("#exs");x.innerHTML="";EXS.forEach(g=>x.append(guideRow(g)));renderScenes()}
 $("#vol").oninput=e=>{if(Snd.master)Snd.master.gain.value=e.target.value/100};
 
-function alertHtml(box){box.classList.toggle("hide",!lowAlertNeeded());if(lowAlertNeeded())box.textContent="最近几天你的心情一直偏低。这很不容易，也不是你的错。可以先试一个小练习，或者找信任的人聊聊。如果感到难以承受，请拨打全国心理援助热线 12356，紧急情况请拨打 120。"}
+const riskRecent=()=>entries.some(e=>!e.demo&&e.t>Date.now()-7*DAY&&(e.risk||isRisk(e.note)))||thoughts.some(x=>x.t>Date.now()-7*DAY&&x.risk);
+function alertHtml(box){const risk=riskRecent(),low=lowAlertNeeded();box.classList.toggle("hide",!risk&&!low);box.innerHTML="";if(!risk&&!low)return;
+ box.append(el("span",{text:risk?"最近的记录里有让人担心的内容。你的感受很重要，请不要一个人扛。":"最近几天你的心情一直偏低。这很不容易，也不是你的错。可以先试一个小练习，或者找信任的人聊聊。"}),el("div",{class:"row",style:"margin-top:8px"},el("b",{text:"心理援助热线 12356"}),el("button",{class:"ghost",text:"更多求助方式",onclick:()=>openSupport(risk?"risk":"help")})))}
 
 /* ---------- 设置与数据 ---------- */
 const getAI=()=>{const c=lsGet("qy_ai",{});return{base:c.base||"https://api.openai.com/v1",model:c.model||"",ok:!!c.ok,key:(secrets.ai&&secrets.ai.key)||memKey}};
@@ -462,7 +540,6 @@ initAIUI();
 $("#exp").onclick=()=>{const u=URL.createObjectURL(new Blob([JSON.stringify({app:"qingyi",entries},null,1)],{type:"application/json"}));const a=el("a",{href:u,download:"qingyi-backup.json"});document.body.append(a);a.click();a.remove();$("#meMsg").textContent=`已导出 ${entries.length} 条记录。备份文件没有加密，请妥善保管。若浏览器没有下载，请改用普通浏览器标签打开本页再试。`};
 $("#impBtn").onclick=()=>$("#imp").click();
 $("#imp").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result),arr=Array.isArray(j)?j:j.entries;if(!Array.isArray(arr))throw 0;const ids=new Set(entries.map(x=>x.id));let n=0;arr.forEach(x=>{if(x&&x.mood>=1&&x.mood<=5&&x.t&&!ids.has(x.id)){entries.push({id:x.id||x.t+"-"+Math.random().toString(36).slice(2,6),t:+x.t,mood:+x.mood,emos:x.emos||[],trigs:x.trigs||[],note:x.note||""});n++}});entries.sort((a,b)=>b.t-a.t);save();render();$("#meMsg").textContent=`导入完成，新增 ${n} 条。`}catch(err){$("#meMsg").textContent="文件格式不正确。"}};r.readAsText(f);e.target.value=""};
-let armClr=false;$("#clr").onclick=()=>{if(!armClr){armClr=true;$("#clr").textContent="再点一次确认清空";setTimeout(()=>{armClr=false;$("#clr").textContent="清空全部"},3000)}else{entries=[];save();armClr=false;$("#clr").textContent="清空全部";render();$("#meMsg").textContent="已清空全部记录。"}};
 $("#clrDemo").onclick=()=>{entries=entries.filter(e=>!e.demo);save();render();$("#meMsg").textContent="已清除示例数据。"};
 $("#demo").onclick=()=>{const T=["学业/考试","工作/实习","人际社交","睡眠不足","自我比较"],notes=["组会被点名，脑子一片空白","和室友聊了会儿，轻松多了","通宵改 PPT，整个人是飘的","今天跑了步，心情不错","担心实习转正的事"];
  entries=entries.filter(e=>!e.demo).concat(Array.from({length:24},(_,i)=>{const tr=T[i%5],low=tr==="学业/考试"||tr==="睡眠不足";return{id:"demo"+i,demo:true,t:Date.now()-i*DAY*1.2-3600e3*(i%5),mood:low?1+(i%2):3+(i%3),emos:[low?(i%3?"焦虑":"疲惫"):(i%2?"平静":"开心")],trigs:[tr],note:notes[i%5]}})).sort((a,b)=>b.t-a.t);save();render()};
@@ -477,6 +554,17 @@ render();renderNow();
 /* ===== v3：PWA、提醒、加密云同步、PIN 锁、想法整理、往日今天、成就、年度像素图 ===== */
 const prefs0=()=>lsGet("qy_prefs",{});
 const savePrefs=p=>lsSet("qy_prefs",p);
+/* --- 知情同意：首次使用的总同意 + 每个联网功能的单独同意 --- */
+const CONSENT_V=1;
+const consented=()=>{const c=prefs0().consent;return !!(c&&c.v>=CONSENT_V)};
+const cUI=()=>{$("#cOk").disabled=!($("#cAgree").checked&&$("#cAge").checked)};
+$("#cAgree").onchange=cUI;$("#cAge").onchange=cUI;
+$("#cNo").onclick=()=>{$("#cMsg").textContent="没关系。在你同意之前，晴一日记不会保存任何内容。你可以先读一读隐私政策，或直接关闭这个页面。"};
+$("#cOk").onclick=()=>{const p=prefs0();p.consent={v:CONSENT_V,t:Date.now()};savePrefs(p);$("#consent").classList.add("hide");showLock()};
+const AGREE={sb:"#sbAgree",gist:"#syAgree",push:"#pushAgree"};
+const agreed=k=>{const a=prefs0().agree;return !!(a&&a[k])};
+function needAgree(k,msg){const box=$(AGREE[k]);if(box.checked){const p=prefs0();p.agree=p.agree||{};p.agree[k]=p.agree[k]||Date.now();savePrefs(p);return true}msg("请先勾选上方的数据存储同意项。");box.focus();return false}
+Object.entries(AGREE).forEach(([k,sel])=>{$(sel).checked=agreed(k);$(sel).onchange=e=>{if(!e.target.checked){const p=prefs0();if(p.agree)delete p.agree[k];savePrefs(p)}}});
 const enc=new TextEncoder(),dec=new TextDecoder();
 const b64=u=>{let s="";for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s)};
 const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
@@ -545,15 +633,15 @@ loadRem();setInterval(remindTick,30000);
 const VAPID="BEw-gN0x9S7mxs58vOsZVJPrkuvZ6qdhJ8yzbseY_MDRRrdIVmPz06tV1iJuCtY86-kuk69W7Bvbd8dSQZi9-QI";
 const u8=x=>{const b=(x+"=".repeat((4-x.length%4)%4)).replace(/-/g,"+").replace(/_/g,"/"),r=atob(b);return Uint8Array.from(r,c=>c.charCodeAt(0))};
 const pushMsg=t=>{$("#pushState").textContent=t};
-async function pushCall(body){const r=await fetch(SB+"/functions/v1/push",{method:"POST",headers:{"Content-Type":"application/json",apikey:SBK,Authorization:"Bearer "+SBK},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||("状态 "+r.status));return j}
-async function pushReg(){if(!("serviceWorker"in navigator)||!("PushManager"in window))return null;try{return await navigator.serviceWorker.ready}catch(e){return null}}
+async function pushCall(body){const r=await fetch(SB+"/functions/v1/push",{method:"POST",headers:{"Content-Type":"application/json",apikey:SBK,Authorization:"Bearer "+SBK},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(r.status===429)throw new Error("操作太频繁，请稍后再试");if(!r.ok)throw new Error(j.error||("状态 "+r.status));return j}
+async function pushReg(){if(!("serviceWorker"in navigator)||!("PushManager"in window))return null;try{return await Promise.race([navigator.serviceWorker.ready,new Promise(r=>setTimeout(()=>r(null),3000))])}catch(e){return null}}
 async function pushSub(){const r=await pushReg();return r?r.pushManager.getSubscription():null}
 const pushParams=()=>({tz:new Date().getTimezoneOffset(),min:remMins($("#remT").value),mode:$("#remMode").value,winEnd:remMins($("#remT2").value)});
 async function pushSync(silent){try{const sub=await pushSub();if(!sub){if(prefs0().pushOn){const p=prefs0();p.pushOn=false;savePrefs(p)}pushUI();return}await pushCall({action:"subscribe",sub:sub.toJSON(),...pushParams()});if(!silent)pushMsg("服务器推送已开启，设置已同步。")}catch(e){if(!silent)pushMsg("同步推送设置失败："+e.message)}}
 async function pushUI(){const sub=await pushSub().catch(()=>null);const on=!!sub&&typeof Notification!=="undefined"&&Notification.permission==="granted";$("#pushOn").classList.toggle("on",on);
  if(!("PushManager"in window))pushMsg(/iphone|ipad/i.test(navigator.userAgent)?"iPhone 需要先用 Safari「添加到主屏幕」，再从桌面图标打开，才能开启推送。":"当前浏览器不支持服务器推送。");
  else pushMsg(on?"服务器推送：已开启。":"服务器推送：未开启。")}
-$("#pushOn").onclick=async()=>{try{const reg=await pushReg();if(!reg){pushUI();return}if(!navigator.serviceWorker.controller&&!reg.active){pushMsg("离线组件还没就绪，请稍后再试。");return}
+$("#pushOn").onclick=async()=>{if(!needAgree("push",pushMsg))return;try{const reg=await pushReg();if(!reg){pushUI();return}if(!navigator.serviceWorker.controller&&!reg.active){pushMsg("离线组件还没就绪，请稍后再试。");return}
   if(typeof Notification==="undefined"){pushMsg("当前浏览器不支持通知。");return}const perm=Notification.permission==="granted"?"granted":await Notification.requestPermission();if(perm!=="granted"){pushMsg("没有获得通知权限，请在浏览器的网站设置里允许通知后重试。");return}
   const sub=await reg.pushManager.getSubscription()||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(VAPID)});
   await pushCall({action:"subscribe",sub:sub.toJSON(),...pushParams()});const p=prefs0();p.pushOn=true;savePrefs(p);pushMsg("服务器推送已开启。到点时即使关闭网页也会收到提醒。");pushUI()}
@@ -576,7 +664,7 @@ async function ghJson(url,opt,tok){const r=await fetch(GH+url,{...opt,headers:gh
 async function findGist(tok){const sy=prefs0().sync||{};if(sy.gid)return sy.gid;for(let pg=1;pg<=3;pg++){const l=await ghJson(`/gists?per_page=100&page=${pg}`,{},tok);const g=l.find(x=>x.description==="qingyi-sync");if(g)return g.id;if(l.length<100)break}return null}
 let syncing=false;
 async function syncNow(silent){if(syncing)return;const tok=$("#syTok").value.trim(),pass=$("#syPass").value,msg=t=>{$("#syMsg").textContent=t};
- if(!tok||!pass){if(!silent)msg("请先填写令牌和口令。");return}if(pass.length<6){msg("口令至少 6 位。");return}
+ if(!tok||!pass){if(!silent)msg("请先填写令牌和口令。");return}if(silent?!agreed("gist"):!needAgree("gist",msg))return;if(pass.length<6){msg("口令至少 6 位。");return}
  syncing=true;msg("同步中…");
  try{let gid=await findGist(tok),pulled=0;
   if(gid){const g=await ghJson("/gists/"+gid,{},tok),f=g.files["qingyi.json"];let txt=f&&f.content;if(f&&f.truncated)txt=await fetch(f.raw_url).then(r=>r.text());
@@ -604,7 +692,7 @@ async function sbToken(){if(!sess)throw new Error("请先登录");if(Date.now()>
 function sbPersist(){if(!vaultKey)return;if(sess&&$("#sbKeep").checked){secrets.sb={rt:sess.rt,email:sess.email,uid:sess.uid,cp:$("#sbPass").value}}else delete secrets.sb;save()}
 function sbUI(){const on=!!sess;$("#sbOut").classList.toggle("hide",on);$("#sbIn2").classList.toggle("hide",!on);if(on)$("#sbWho").textContent="已登录："+sess.email}
 const sbMsg=t=>{$("#sbMsg").textContent=t};
-async function sbSign(kind){const email=$("#sbEmail").value.trim(),pw=$("#sbPw").value;if(!/^\S+@\S+\.\S+$/.test(email)){sbMsg("邮箱格式不对");return}if(pw.length<8){sbMsg("账号密码至少 8 位");return}
+async function sbSign(kind){if(!needAgree("sb",sbMsg))return;const email=$("#sbEmail").value.trim(),pw=$("#sbPw").value;if(!/^\S+@\S+\.\S+$/.test(email)){sbMsg("邮箱格式不对");return}if(pw.length<8){sbMsg("账号密码至少 8 位");return}
  sbMsg(kind==="up"?"注册中…":"登录中…");
  try{const j=kind==="up"?await sbAuth("signup",{email,password:pw}):await sbAuth("token?grant_type=password",{email,password:pw});
   if(!j.access_token){sbMsg("注册成功，但账号需要邮箱确认后才能登录。");return}
@@ -612,7 +700,7 @@ async function sbSign(kind){const email=$("#sbEmail").value.trim(),pw=$("#sbPw")
  catch(e){sbMsg((kind==="up"?"注册失败：":"登录失败：")+e.message)}}
 $("#sbIn").onclick=()=>sbSign("in");$("#sbUp").onclick=()=>sbSign("up");
 let sbBusy=false;
-async function sbSync(silent){if(sbBusy)return;const cp=$("#sbPass").value;if(cp.length<6){if(!silent)sbMsg("请先填写云端加密口令（至少 6 位）。");return}
+async function sbSync(silent){if(sbBusy)return;if(silent?!agreed("sb"):!needAgree("sb",sbMsg))return;const cp=$("#sbPass").value;if(cp.length<6){if(!silent)sbMsg("请先填写云端加密口令（至少 6 位）。");return}
  sbBusy=true;sbMsg("同步中…");
  try{const tok=await sbToken(),H=sbH(tok);
   const g=await fetch(SB+"/rest/v1/vaults?select=blob",{headers:H});if(!g.ok)throw new Error("读取云端失败 "+g.status);const rows=await g.json();let pulled=0;
@@ -635,7 +723,7 @@ const dsel=new Set();DIST.forEach(x=>$("#cbtD").append(el("button",{class:"chip"
 $("#cbtB").oninput=e=>$("#cbtBo").textContent=e.target.value;$("#cbtA").oninput=e=>$("#cbtAo").textContent=e.target.value;
 $("#cbtOpen").onclick=()=>$("#cbtForm").classList.toggle("hide");
 $("#cbtSave").onclick=()=>{const th=$("#cbtThought").value.trim();if(!th){$("#cbtThought").focus();return}
- thoughts.unshift({id:"t"+Date.now()+Math.random().toString(36).slice(2,5),t:Date.now(),sit:$("#cbtSit").value.trim(),th,b:+$("#cbtB").value,d:[...dsel],alt:$("#cbtAlt").value.trim(),bal:$("#cbtBal").value.trim(),a:+$("#cbtA").value});save();
+ const tt={id:"t"+Date.now()+Math.random().toString(36).slice(2,5),t:Date.now(),sit:$("#cbtSit").value.trim(),th,b:+$("#cbtB").value,d:[...dsel],alt:$("#cbtAlt").value.trim(),bal:$("#cbtBal").value.trim(),a:+$("#cbtA").value};if(isRisk([tt.sit,tt.th,tt.alt,tt.bal].join(" ")))tt.risk=true;thoughts.unshift(tt);save();if(tt.risk)openSupport("risk");
  ["#cbtSit","#cbtThought","#cbtAlt","#cbtBal"].forEach(s=>$(s).value="");dsel.clear();document.querySelectorAll("#cbtD .chip").forEach(c=>c.setAttribute("aria-pressed","false"));$("#cbtForm").classList.add("hide");render()};
 function renderCBT(){const b=$("#cbtList");b.innerHTML="";if(!thoughts.length){return}
  const tot=thoughts.reduce((a,x)=>a+(x.b-x.a),0)/thoughts.length;b.append(el("p",{class:"sub",text:`已整理 ${thoughts.length} 条，难受程度平均变化 ${tot>0?"降低":"上升"} ${Math.abs(tot).toFixed(0)} 点`}));
@@ -656,9 +744,28 @@ function renderYear(){const y=$("#year");y.innerHTML="";const today=dayStart(Dat
 function calUI(){$("#heat").classList.toggle("hide",calY);$("#year").classList.toggle("hide",!calY);$("#calW").classList.toggle("on",!calY);$("#calY").classList.toggle("on",calY);if(calY)renderYear()}
 $("#calW").onclick=()=>{calY=false;calUI()};$("#calY").onclick=()=>{calY=true;calUI()};
 
+/* --- 删除我的全部数据（也即撤回同意） --- */
+async function delTargets(){const t=[["本机的全部记录、想法整理、练习记录和设置",true]];
+ t.push(sess?["云端账号（"+sess.email+"）和云端加密数据",true]:["云端账号：当前未登录。如果注册过账号，请先在上方登录，才能一起删除",false]);
+ const sub=await pushSub().catch(()=>null);t.push(sub?["服务器上的推送订阅",true]:["推送订阅：未开启",false]);
+ const g=(prefs0().sync||{}).gid;t.push(g?($("#syTok").value.trim()?["GitHub 私密 Gist 备份",true]:["GitHub Gist 备份：需先在上方填写令牌，或到 GitHub 手动删除名为 qingyi-sync 的 Gist",false]):["GitHub Gist 备份：未使用",false]);
+ return t}
+$("#delOpen").onclick=async()=>{$("#delPanel").classList.remove("hide");const ul=$("#delList");ul.innerHTML="";(await delTargets()).forEach(([t,on])=>ul.append(el("li",{class:on?"":"sub",text:t})));$("#delConfirm").value="";$("#delGo").disabled=true;$("#delMsg").textContent="";$("#delConfirm").focus()};
+$("#delConfirm").oninput=e=>{$("#delGo").disabled=e.target.value.trim()!=="删除"};
+$("#delCancel").onclick=()=>$("#delPanel").classList.add("hide");
+$("#delGo").onclick=async()=>{const out=[],msg=$("#delMsg");$("#delGo").disabled=true;msg.textContent="正在删除…";
+ if(sess){try{const tok=await sbToken();await pushCall({action:"delete_account",token:tok});out.push("云端账号和云端数据：已删除")}catch(e){out.push("云端账号：删除失败（"+e.message+"），请稍后重试")}sess=null}
+ try{const sub=await pushSub();if(sub){await pushCall({action:"unsubscribe",endpoint:sub.endpoint}).catch(()=>{});await sub.unsubscribe();out.push("推送订阅：已删除")}}catch(e){out.push("推送订阅：删除失败")}
+ const g=(prefs0().sync||{}).gid,gt=$("#syTok").value.trim();if(g&&gt){try{const r=await fetch(GH+"/gists/"+g,{method:"DELETE",headers:ghH(gt)});out.push(r.ok||r.status===404?"Gist 备份：已删除":"Gist 备份：删除失败（"+r.status+"）")}catch(e){out.push("Gist 备份：删除失败")}}
+ Snd.stop(true);Guide.stop(true);
+ try{localStorage.clear()}catch(e){}try{await caches.delete("qingyi-prefs")}catch(e){}
+ entries=[];thoughts=[];practice=[];tomb={};secrets={};vaultKey=null;memKey="";
+ out.push("本机数据：已全部清除");msg.textContent=out.join("；")+"。页面将在 5 秒后重新开始。";setTimeout(()=>location.reload(),5000)};
+
 const _render=render;
 render=function(){_render();renderCBT();renderMems();renderBadges();calUI();remindTick();greet()};
-vState();render();if(locked){$("#lock").classList.remove("hide");$("#lockHi").textContent=(prefs0().nick?prefs0().nick+"，":"")+"输入口令解锁";$("#lockIn").focus()}
+function showLock(){if(locked){$("#lock").classList.remove("hide");$("#lockHi").textContent=(prefs0().nick?prefs0().nick+"，":"")+"输入口令解锁";$("#lockIn").focus()}}
+vState();render();if(consented())showLock();else{$("#consent").classList.remove("hide");$("#cAgree").focus()}
 </script>
 </body>
 </html>

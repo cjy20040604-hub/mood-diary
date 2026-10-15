@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2f8f83">
+<link rel="icon" href="icon-192.png" type="image/png">
+<title>晴一日记 · 隐私政策与使用条款</title>
+<style>
+/* 单列阅读页，沿用应用的配色与字体栈 */
+:root{--bg:#f3f6f5;--card:#fff;--fg:#1f2f2d;--mute:#6b7d7a;--line:#dbe5e2;--accent:#2f8f83;--accent-soft:#dff1ee;--warm-soft:#fbe9dc;
+--body:"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;--display:"Songti SC","Noto Serif SC",serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121b1a;--card:#1b2827;--fg:#e6efed;--mute:#97aaa6;--line:#2c3d3b;--accent:#5cc2b3;--accent-soft:#1f3a36;--warm-soft:#3a2a1f;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121b1a;--card:#1b2827;--fg:#e6efed;--mute:#97aaa6;--line:#2c3d3b;--accent:#5cc2b3;--accent-soft:#1f3a36;--warm-soft:#3a2a1f;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.75;padding-inline:16px;padding-block:24px 64px}
+main{max-width:720px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 20px}
+h1{font-family:var(--display);font-size:24px;margin:0 0 4px;text-wrap:balance}
+h2{font-size:17px;margin:28px 0 8px;padding-top:16px;border-top:1px solid var(--line)}
+p,li{max-width:65ch}
+ul{padding-left:20px}
+.sub{color:var(--mute);font-size:13px}
+a{color:var(--accent)}
+.note{background:var(--warm-soft);border-radius:10px;padding:12px 14px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft)}
+nav.back{max-width:720px;margin:0 auto 12px}
+</style>
+</head>
+<body>
+<nav class="back"><a href="./">← 返回晴一日记</a></nav>
+<main>
+<h1>隐私政策与使用条款</h1>
+<p class="sub">生效日期：2026 年 10 月 15 日 · 版本 1</p>
+
+<div class="note">
+<p style="margin:0"><b>先说重点：</b>你的心情和日记默认只保存在你自己的设备上，我们看不到。只有你主动开启云同步、服务器推送或 AI 复盘时，相关数据才会离开你的设备，并且每一项都会先单独征得你的同意。你可以随时导出或删除全部数据。晴一日记不是医疗服务。</p>
+</div>
+
+<h2>1. 我们是谁</h2>
+<p>晴一日记是一个情绪记录与自我关怀的网页应用（以下称“本应用”），目前由个人开发者维护，处于原型阶段。联系方式：在 <a href="https://github.com/cjy20040604-hub/mood-diary/issues" rel="noopener">GitHub 仓库的 Issues</a> 中留言。</p>
+
+<h2>2. 我们处理哪些信息</h2>
+<ul>
+<li><b>你主动记录的内容：</b>心情分数、情绪标签、触发因素、日记备注、想法整理内容、练习记录、昵称。</li>
+<li><b>设置信息：</b>提醒时间与方式、主题偏好、是否已同意本政策及同意时间。</li>
+<li><b>仅在你开启对应功能时：</b>
+ <ul>
+ <li>云端账号与同步：你的邮箱、账号密码（由服务商以加密散列方式保存），以及在本机加密后的数据密文。</li>
+ <li>服务器推送：浏览器生成的推送地址与密钥、提醒时间、时区。不包含任何日记内容。</li>
+ <li>GitHub Gist 同步：在本机加密后的数据密文，存放在你自己的 GitHub 账号中。</li>
+ <li>AI 复盘：本周的统计结果和部分日记文字，发送到你自己填写的 AI 服务。</li>
+ </ul></li>
+</ul>
+<p>我们不收集你的姓名、手机号、位置、通讯录，也不做广告追踪或用户画像。</p>
+
+<h2>3. 敏感个人信息</h2>
+<p>心情、情绪和日记内容可能反映你的身心健康状况，属于敏感个人信息。我们只为“帮你记录、回顾和照顾情绪”这一个目的处理它们。首次使用时，我们会请你单独同意；开启任何会把数据发出设备的功能前，会再请你单独同意一次。你可以随时撤回同意。</p>
+
+<h2>4. 存储位置与跨境说明</h2>
+<div class="tbl"><table>
+<tr><th>功能</th><th>服务方</th><th>存储位置</th><th>存什么</th></tr>
+<tr><td>网页托管</td><td>GitHub Pages</td><td>美国</td><td>只提供网页文件，不存你的数据；访问时服务方会看到你的 IP 地址</td></tr>
+<tr><td>网页字体</td><td>Google Fonts</td><td>美国</td><td>加载字体时，服务方会看到你的 IP 地址</td></tr>
+<tr><td>本机记录</td><td>你的浏览器</td><td>你的设备</td><td>全部记录；启用“本机加密”后为密文</td></tr>
+<tr><td>云端账号与同步（可选）</td><td>Supabase</td><td>爱尔兰（欧盟）</td><td>邮箱、数据密文</td></tr>
+<tr><td>服务器推送（可选）</td><td>Supabase；浏览器厂商的推送服务</td><td>爱尔兰（欧盟）；由浏览器决定</td><td>推送地址、提醒时间、时区</td></tr>
+<tr><td>Gist 同步（可选）</td><td>GitHub</td><td>美国</td><td>数据密文</td></tr>
+<tr><td>AI 复盘（可选）</td><td>你自己填写的服务</td><td>取决于该服务</td><td>本周统计与部分日记文字</td></tr>
+</table></div>
+<p>以上可选功能涉及把信息传输到中国境外。只有在你勾选对应的同意项后才会发生。云同步和 Gist 同步的数据在你的设备上加密后才上传，服务方和我们都无法读取内容。</p>
+
+<h2>5. 我们不会做的事</h2>
+<ul>
+<li>不出售、不出租、不共享你的个人信息。</li>
+<li>不读取你的日记内容（云端只有密文）。</li>
+<li>不在推送通知里放入任何日记内容。</li>
+<li>当你的记录中出现可能涉及自我伤害的内容时，不会把这些内容发送给 AI 服务。</li>
+</ul>
+
+<h2>6. 保存期限</h2>
+<ul>
+<li>本机数据：保存在你的浏览器里，直到你删除或清除浏览器数据。</li>
+<li>云端数据：保存到你删除云端数据或删除账号为止。</li>
+<li>推送订阅：你关闭推送、删除全部数据，或浏览器推送地址失效时删除。</li>
+<li>为防止接口被滥用而记录的请求频率信息：只保存不可还原的 IP 摘要和计数，通常一天内自动清除。</li>
+</ul>
+
+<h2>7. 你的权利</h2>
+<ul>
+<li><b>查阅与导出：</b>在「设置 → 我的数据」导出 JSON 备份。</li>
+<li><b>更正：</b>可以删除记录后重新记录。</li>
+<li><b>删除与撤回同意：</b>在「设置 → 我的数据 → 删除我的全部数据」一次性删除本机数据、云端账号与数据、推送订阅；如使用过 Gist 同步，可一并删除或在 GitHub 手动删除。删除即视为撤回同意。</li>
+<li><b>单项撤回：</b>取消勾选对应同意项、退出登录、关闭推送或断开 Gist，即可停止相应处理。</li>
+<li>如对个人信息处理有疑问或投诉，可通过第 1 节的方式联系我们。</li>
+</ul>
+
+<h2>8. 未成年人</h2>
+<p>未满 14 周岁的用户，请在父母或其他监护人同意并指导下使用本应用。如果监护人发现未成年人在未经同意的情况下使用，可以直接在设备上删除全部数据，或联系我们。</p>
+
+<h2>9. 安全措施</h2>
+<ul>
+<li>本机加密与云端同步使用浏览器内置的 AES-GCM 加密，密钥由你的口令派生，我们不保存口令。</li>
+<li>云端数据表开启行级安全，每个账号只能读写自己的数据。</li>
+<li>推送等接口设有调用频率限制。</li>
+<li>没有任何安全措施能保证绝对安全。口令遗失后数据无法恢复，请妥善保管。</li>
+</ul>
+
+<h2>10. 不是医疗服务</h2>
+<p>本应用提供的记录、统计、周报、练习和 AI 复盘仅用于日常自我关怀，不构成医疗诊断、治疗或专业心理咨询建议，也不能替代专业帮助。统计结论基于你的记录，可能不准确。</p>
+<p class="note">如果你有伤害自己或他人的想法，请立即求助：全国心理援助热线 <b>12356</b>；希望 24 热线 <b>400-161-9995</b>；北京心理危机研究与干预中心 <b>010-82951332</b>。有立即危险时请拨打 <b>120</b> 或 <b>110</b>。号码如有调整，以官方公布为准。</p>
+
+<h2>11. 使用条款</h2>
+<ul>
+<li>本应用免费提供，按“现状”提供，我们会尽力保证可用，但不保证不中断或没有错误。</li>
+<li>请勿利用本应用的接口进行批量调用、攻击或其他滥用行为。</li>
+<li>你对自己记录的内容拥有全部权利。</li>
+<li>因使用本应用产生的争议，适用中华人民共和国法律。</li>
+</ul>
+
+<h2>12. 政策更新</h2>
+<p>政策有实质变化时，我们会在应用内再次请你阅读并同意。旧版本的同意不会被用于新增的处理目的。</p>
+</main>
+</body>
+</html>

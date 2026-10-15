@@ -45,3 +45,28 @@ revoke all on public.push_config from anon, authenticated;
 --     url := 'https://<PROJECT_REF>.supabase.co/functions/v1/push',
 --     headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer <ANON_KEY>','x-cron-secret','<CRON_SECRET>'),
 --     body := '{"action":"cron"}'::jsonb) $$);
+
+-- 4) 推送接口的频率限制：只存 IP / 推送地址的不可还原摘要和计数，定时任务每天清理
+create table if not exists public.push_rl (
+  k text primary key,
+  n int not null,
+  reset_at timestamptz not null
+);
+alter table public.push_rl enable row level security;
+revoke all on public.push_rl from anon, authenticated;
+
+-- 原子地计数：窗口内第几次调用；返回 true 表示仍在限额内
+create or replace function public.push_hit(p_key text, p_max int, p_window int)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare v_n int;
+begin
+  insert into public.push_rl as r (k, n, reset_at)
+  values (p_key, 1, now() + make_interval(secs => p_window))
+  on conflict (k) do update set
+    n = case when r.reset_at < now() then 1 else r.n + 1 end,
+    reset_at = case when r.reset_at < now() then now() + make_interval(secs => p_window) else r.reset_at end
+  returning n into v_n;
+  return v_n <= p_max;
+end $$;
+revoke all on function public.push_hit(text, int, int) from public, anon, authenticated;
+grant execute on function public.push_hit(text, int, int) to service_role;

@@ -1,0 +1,12 @@
+{
+  "name": "qingyi-diary",
+  "private": true,
+  "description": "晴一日记：情绪日记与自我关怀（自动化测试依赖）",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}
