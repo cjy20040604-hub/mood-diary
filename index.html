@@ -426,6 +426,7 @@ const EXS=[
  {id:"walk",title:"原地踏步 / 快走",min:"约 4.5 分钟",desc:"把紧张的能量释放出来",kinds:["anx","sad"],steps:[["站起来，原地踏步，抬高膝盖，节奏轻快。",60],["加快一点，同时摆动手臂。",60],["保持节奏，注意呼吸，鼻吸口呼。",60],["慢慢减速，继续走动。",60],["停下，做三次深呼吸，感受心跳。",30]]},
  {id:"desk",title:"桌前拉伸",min:"约 3 分钟",desc:"工位也能做，唤醒身体",kinds:["tired","ok"],steps:[["双臂上举，十指交叉，向上伸展，拉长身体。",20],["向右侧弯，保持，感受左侧腰部拉伸。",20],["换到左侧。",20],["站起，扭转上身，看向身后，两侧各一次。",30],["手撑桌边，向后退，下压胸口，打开肩背。",30],["踮脚站立 10 次，唤醒小腿。",30],["放松，深呼吸。",15]]}];
 const SCENES={rain:"🌧 雨声",ocean:"🌊 海浪",wind:"🍃 风声",night:"🌙 夜晚氛围",white:"☁ 白噪音"};
+const sceneName=k=>SCENES[k].split(" ").slice(1).join(" ");
 const RECS={anx:{med:"breath",sc:"rain",ex:"walk"},sad:{med:"kind",sc:"night",ex:"walk"},tired:{med:"scan",sc:"ocean",ex:"neck"},ok:{med:"breath",sc:"wind",ex:"desk"}};
 
 /* ---------- 音频：预先渲染成可无缝循环的音频，用系统播放器播放（锁屏可继续） ---------- */
@@ -470,7 +471,7 @@ const Snd={el:null,cur:null,endAt:0,tm:null,fadeIv:null,cache:{},vol:.6,
   if(a){if(quick){clearInterval(this.fadeIv);a.pause()}else this.fade(0,1200,()=>{if(!this.cur)a.pause()})}
   try{if("mediaSession"in navigator)navigator.mediaSession.playbackState="none"}catch(e){}renderNow();renderScenes()},
  setVol(v){this.vol=v;if(this.el&&this.cur){clearInterval(this.fadeIv);this.el.volume=v}},
- session(name){if(!("mediaSession"in navigator))return;try{navigator.mediaSession.metadata=new MediaMetadata({title:SCENES[name].slice(2),artist:"晴一日记",artwork:[{src:"icon-512.png",sizes:"512x512",type:"image/png"}]});
+ session(name){if(!("mediaSession"in navigator))return;try{navigator.mediaSession.metadata=new MediaMetadata({title:sceneName(name),artist:"晴一日记",artwork:[{src:"icon-512.png",sizes:"512x512",type:"image/png"}]});
   navigator.mediaSession.setActionHandler("pause",()=>this.stop());navigator.mediaSession.setActionHandler("stop",()=>this.stop());navigator.mediaSession.setActionHandler("play",()=>{if(!this.cur)this.play(name,0)});navigator.mediaSession.playbackState="playing"}catch(e){}}};
 function alert_(m){$("#meMsg").textContent=m}
 
@@ -537,7 +538,7 @@ function recRow(kind,label,title,desc,btn,fn){return el("div",{class:"rec"},el("
 function pickBest(list,k,defId){const best=list.filter(x=>x.kinds.includes(k)).map(x=>({x,e:effectOf(x.id)})).filter(o=>o.e&&o.e.n>=2&&o.e.d>0).sort((a,b)=>b.e.d-a.e.d||b.e.n-a.e.n)[0];
  return best?{g:best.x,why:`你做过 ${best.e.n} 次，平均让心情好了 ${best.e.d.toFixed(1)} 档`}:{g:list.find(x=>x.id===defId),why:null}}
 function recsFor(k){const r=RECS[k],pm=pickBest(MEDS,k,r.med),px=pickBest(EXS,k,r.ex),m=pm.g,x=px.g;
- return [recRow("冥想","",m.title,(pm.why||m.desc)+" · "+m.min,"开始",()=>{goTab("care");Guide.start(m)}),recRow("音乐","",SCENES[r.sc].slice(2),"生成的背景音，锁屏后也能继续播放","播放",()=>{goTab("care");Snd.play(r.sc,+$("#sleepT").value)}),recRow("运动","",x.title,(px.why||x.desc)+" · "+x.min,"开始",()=>{goTab("care");Guide.start(x)})]}
+ return [recRow("冥想","",m.title,(pm.why||m.desc)+" · "+m.min,"开始",()=>{goTab("care");Guide.start(m)}),recRow("音乐","",sceneName(r.sc),"生成的背景音，锁屏后也能继续播放","播放",()=>{goTab("care");Snd.play(r.sc,+$("#sleepT").value)}),recRow("运动","",x.title,(px.why||x.desc)+" · "+x.min,"开始",()=>{goTab("care");Guide.start(x)})]}
 
 $("#save").onclick=()=>{
  if(!S.mood){$("#save").textContent="请先选择一个心情";setTimeout(()=>$("#save").textContent="记录这一刻",1500);return}

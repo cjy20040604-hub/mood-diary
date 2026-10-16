@@ -710,3 +710,10 @@ test("旧版的 AI 同意（只针对自己的接口）不会沿用到服务端�
   await tab(page, "me");
   await expect(page.locator("#aiOk")).not.toBeChecked();
 });
+
+test("声音名称不带多余空格（推荐卡片与锁屏媒体信息）", async ({ page }) => {
+  await boot(page);
+  expect(await page.evaluate(() => Object.keys(SCENES).map(sceneName))).toEqual(["雨声", "海浪", "风声", "夜晚氛围", "白噪音"]);
+  await tab(page, "care");
+  await expect(page.locator("#recs .rec", { hasText: "音乐" }).locator("b")).toHaveText(/^\S/);
+});
