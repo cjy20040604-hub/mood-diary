@@ -122,6 +122,12 @@ a{color:var(--accent)}
 .tag.g{background:transparent;border:1px solid var(--accent);color:var(--accent)}
 .chip.g[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .grp{align-self:center;min-width:3.5em;font-size:12px}
+.rate{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.rate button{font-size:22px;line-height:1;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);cursor:pointer}
+.rate button:hover{border-color:var(--accent)}
+.eff{color:var(--accent);font-weight:500}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;letter-spacing:.06em;background:var(--bg);border:1px dashed var(--accent);border-radius:10px;padding:12px;text-align:center;user-select:all;overflow-wrap:anywhere}
+#pwReset{z-index:102}
 </style>
 </head>
 <body>
@@ -143,6 +149,10 @@ a{color:var(--accent)}
  <section id="log" class="tab">
   <div class="alert hide" id="lowAlert"></div>
   <div class="alert hide" id="remindBar"></div>
+  <div class="card hide" id="onboard"><h2>欢迎来到晴一日记</h2>
+   <p class="sub" style="margin-bottom:10px">这里的记录默认只保存在你的设备上。可以先用 1 分钟让身体慢下来，也可以直接记下此刻的心情。</p>
+   <div class="row"><button class="ghost on" id="obBreath">试试 1 分钟呼吸</button><button class="ghost" id="obLog">先记录心情</button><button class="ghost" id="obSkip">不用了</button></div>
+  </div>
   <div class="card">
    <h2>此刻心情如何？</h2>
    <div class="moods" id="moods"></div>
@@ -175,6 +185,7 @@ a{color:var(--accent)}
   <div class="card"><h2>情绪日历</h2><div class="row" style="margin-bottom:8px"><button class="ghost on" id="calW">最近 5 周</button><button class="ghost" id="calY">全年像素图</button></div><div class="heat" id="heat"></div><div class="year hide" id="year"></div>
    <div class="row sub" style="margin-top:8px">低<span class="chips" style="gap:3px"><span class="tag" style="background:var(--l1)">&nbsp;</span><span class="tag" style="background:var(--l2)">&nbsp;</span><span class="tag" style="background:var(--l3)">&nbsp;</span><span class="tag" style="background:var(--l4)">&nbsp;</span><span class="tag" style="background:var(--l5)">&nbsp;</span></span>高</div></div>
   <div class="card"><h2>压力来源排行</h2><p class="sub">按相关记录的低落程度排序，越长越需要关注</p><div id="trigbars"></div><div class="insight" id="insightText"></div></div>
+  <div class="card"><h2>哪些练习对你有用</h2><p class="sub">根据你练习前后的评分，右侧是平均变化和次数</p><div id="effbars"></div></div>
   <div class="card"><h2>让你变好的事（近 30 天）</h2><p class="sub">按出现次数排序，右侧是相关记录的平均心情</p><div id="goodbars"></div></div>
   <div class="card"><h2>情绪构成（近 30 天）</h2><div id="emobars"></div></div>
   <button class="ghost" id="demo">载入示例数据，预览洞察效果</button>
@@ -183,7 +194,7 @@ a{color:var(--accent)}
  <section id="care" class="tab hide">
   <div class="alert hide" id="careAlert"></div>
   <div class="card"><h2 id="recTitle">为你推荐</h2><div id="recs"></div></div>
-  <div class="card"><h2>白噪音 / 氛围音</h2><p class="sub">由浏览器实时合成，无需联网，建议佩戴耳机</p>
+  <div class="card"><h2>白噪音 / 氛围音</h2><p class="sub">由浏览器生成，无需联网。锁屏或切到其他应用后仍会继续播放，可在系统的媒体控制里暂停。</p>
    <div class="chips" id="scenes" style="margin-top:10px"></div>
    <label class="l" for="vol">音量</label><input type="range" id="vol" min="0" max="100" value="60">
    <label class="l" for="sleepT">定时关闭</label>
@@ -243,11 +254,23 @@ a{color:var(--accent)}
    <div id="sbOut">
     <label class="l" for="sbEmail">邮箱</label><input type="text" id="sbEmail" autocomplete="username" inputmode="email">
     <label class="l" for="sbPw">账号密码（至少 8 位）</label><input type="password" id="sbPw" autocomplete="current-password">
-    <div class="row" style="margin-top:10px"><button class="ghost" id="sbIn">登录</button><button class="ghost" id="sbUp">注册新账号</button></div>
+    <div class="row" style="margin-top:10px"><button class="ghost" id="sbIn">登录</button><button class="ghost" id="sbUp">注册新账号</button><button class="linkbtn" id="sbForgot">忘记账号密码</button></div>
    </div>
    <div id="sbIn2" class="hide"><p class="sub" id="sbWho"></p>
     <div class="row" style="margin-top:6px"><button class="ghost" id="sbNow">立即同步</button><button class="ghost" id="sbLogout">退出登录</button><button class="ghost" id="sbDel">仅删除云端数据（保留账号）</button></div></div>
    <label class="l" for="sbPass">云端加密口令（至少 6 位，与账号密码不同）</label><input type="password" id="sbPass" autocomplete="off">
+   <div id="sbRecArea" class="hide" style="margin-top:8px">
+    <details><summary>忘记云端加密口令？用恢复码重设</summary>
+     <label class="l" for="sbRecIn">恢复码</label><input type="text" id="sbRecIn" autocomplete="off" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX">
+     <label class="l" for="sbNewPass">新的云端加密口令（至少 6 位）</label><input type="password" id="sbNewPass" autocomplete="new-password">
+     <div class="row" style="margin-top:8px"><button class="ghost" id="sbRecGo">用恢复码重设口令</button></div>
+    </details>
+    <div class="row" style="margin-top:8px"><button class="ghost" id="sbRecNew">重新生成恢复码</button></div>
+   </div>
+   <div id="sbCodeBox" class="alert hide" style="margin-top:10px"><b>请保存你的恢复码</b>
+    <p class="sub" style="margin:4px 0 8px">忘记云端加密口令时，只有它能找回云端数据。它只显示这一次，晴一不会保存。建议抄在纸上或存进密码管理器。</p>
+    <div class="code" id="sbCode"></div>
+    <div class="row" style="margin-top:8px"><button class="ghost" id="sbCodeCopy">复制</button><button class="ghost" id="sbCodeOk">我已保存好</button></div></div>
    <label class="row sub" style="margin-top:10px"><input type="checkbox" id="sbKeep"> 记住登录与口令，解锁后自动同步（仅在启用本机加密后生效，加密保存）</label>
    <p class="sub" id="sbMsg" style="margin-top:8px"></p>
   </div>
@@ -259,13 +282,15 @@ a{color:var(--accent)}
    <div class="row" style="margin-top:10px"><button class="ghost" id="syNow">立即同步</button><button class="ghost" id="syOff">断开并清除令牌</button></div>
    <p class="sub" id="syMsg" style="margin-top:8px"></p>
   </div>
-  <div class="card"><h2>AI 复盘设置（可选）</h2>
-   <p class="sub">默认的周报由本地规则生成，不上传任何数据。如需大模型润色，填写你自己的 OpenAI 兼容接口。密钥只保存在本浏览器。</p>
+  <div class="card"><h2>AI 复盘</h2>
+   <p class="sub">周报默认由本地规则生成，不上传任何数据。点「AI 个性化复盘」时，本周统计和少量日记文字会经晴一的服务器转发给模型服务商生成复盘，服务器不保存这些内容。也可以改用你自己的模型接口（下面三项可选，密钥只保存在本浏览器）。</p>
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiOk"> 我同意把本周统计和部分日记文字（敏感个人信息）发送到 AI 服务生成复盘：默认经晴一服务器转发给模型服务商，填写了自己的接口时则直接发送到该接口。含有危机相关内容时不会发送。</label>
+   <details style="margin-top:8px"><summary>使用自己的模型接口（可选）</summary>
    <label class="l" for="aiBase">接口地址</label><input type="text" id="aiBase" placeholder="https://api.openai.com/v1">
    <label class="l" for="aiModel">模型名</label><input type="text" id="aiModel" placeholder="例如 gpt-4o-mini">
    <label class="l" for="aiKey">API Key</label><input type="password" id="aiKey" autocomplete="new-password">
-   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiOk"> 我同意把本周统计和部分日记文字发送到上面填写的 AI 服务（日记属于敏感个人信息）。含有危机相关内容时不会发送</label>
-   <button class="primary" id="aiSave">保存设置</button>
+   <button class="primary" id="aiSave">保存自己的接口</button>
+   </details>
   </div>
   <div class="card"><h2>我的数据</h2>
    <p class="sub">记录默认只保存在这台设备的浏览器里。换设备或清除浏览器数据前，请先导出备份。你可以随时删除全部数据，删除即视为撤回同意。详见<a href="privacy.html">《隐私政策与使用条款》</a>。</p>
@@ -297,6 +322,13 @@ a{color:var(--accent)}
  <button class="primary" id="cOk" disabled>同意并开始</button>
  <button class="ghost" id="cNo">不同意</button>
  <p class="sub" id="cMsg" aria-live="polite"></p>
+</div></div>
+<div class="lock scroll hide" id="pwReset" role="dialog" aria-modal="true" aria-labelledby="pwTitle"><div class="box sup">
+ <h2 id="pwTitle">设置新的账号密码</h2>
+ <p class="sub">这是云端账号的登录密码，和本机加密口令、云端加密口令都不是同一个。</p>
+ <label class="l" for="pwNew">新密码（至少 8 位）</label><input type="password" id="pwNew" autocomplete="new-password">
+ <button class="primary" id="pwGo">保存新密码</button>
+ <p class="sub" id="pwMsg" aria-live="polite"></p>
 </div></div>
 <div class="lock scroll hide" id="support" role="dialog" aria-modal="true" aria-labelledby="supTitle"><div class="box sup">
  <h2 id="supTitle">需要帮助的时候</h2>
@@ -344,10 +376,35 @@ function el(tag,props,...kids){const e=document.createElement(tag);if(props)for(
 function lsGet(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 const norm=a=>a.map(e=>e.id?e:{...e,id:e.t+"-"+Math.random().toString(36).slice(2,6)});
-let locked=!!lsGet("qy_vault",null),vaultKey=null,vaultSalt=null,secrets={},memKey="",chain=Promise.resolve();
-let entries=locked?[]:norm(lsGet("qy_entries",[]));
-let thoughts=locked?[]:lsGet("qy_thoughts",[]),practice=locked?[]:lsGet("qy_practice",[]),tomb=locked?{}:lsGet("qy_tomb",{});
-const save=()=>{if(locked)return;if(vaultKey){const snap=JSON.stringify({entries,thoughts,practice,tomb,secrets});chain=chain.then(()=>vaultWrite(snap)).catch(()=>{})}else{lsSet("qy_entries",entries);lsSet("qy_thoughts",thoughts);lsSet("qy_practice",practice);lsSet("qy_tomb",tomb)}};
+/* ---------- 存储：IndexedDB（不可用时退回 localStorage），带数据版本与迁移 ---------- */
+// 版本 1：数据在 localStorage；版本 2：数据在 IndexedDB。以后改格式时在 migrate() 里按版本往上升级
+const PLAIN_KEYS=["qy_entries","qy_thoughts","qy_practice","qy_tomb"],DATA_KEYS=[...PLAIN_KEYS,"qy_vault"],SCHEMA=2;
+const Store={db:null,mode:"ls",
+ open(){return new Promise((res,rej)=>{const r=indexedDB.open("qingyi",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error("数据库被占用"))})},
+ run(mode,fn){return new Promise((res,rej)=>{const t=this.db.transaction("kv",mode),st=t.objectStore("kv");let out;const r=fn(st);if(r&&"onsuccess"in r)r.onsuccess=()=>{out=r.result};t.oncomplete=()=>res(out);t.onerror=t.onabort=()=>rej(t.error)})},
+ async init(){if(!window.indexedDB)return;try{this.db=await this.open();this.mode="idb";await this.migrate()}catch(e){console.error("IndexedDB 不可用，继续使用 localStorage：",e);this.db=null;this.mode="ls"}},
+ async migrate(){if((await this.get("qy_schema"))>=SCHEMA)return;
+  const moved={};for(const k of DATA_KEYS){const raw=localStorage.getItem(k);if(raw!=null)moved[k]=JSON.parse(raw)}
+  await this.setMany(moved);
+  // 逐项读回核对一致后，才记下新版本号并删除旧位置的数据；任何一项不一致就抛错，整体退回 localStorage
+  for(const k of Object.keys(moved))if(JSON.stringify(await this.get(k))!==JSON.stringify(moved[k]))throw new Error("迁移核对失败："+k);
+  await this.set("qy_schema",SCHEMA);
+  Object.keys(moved).forEach(k=>localStorage.removeItem(k))},
+ get(k){return this.mode==="idb"?this.run("readonly",st=>st.get(k)):Promise.resolve(lsGet(k,undefined))},
+ setMany(o){if(this.mode==="idb")return this.run("readwrite",st=>{Object.entries(o).forEach(([k,v])=>st.put(v,k))});Object.entries(o).forEach(([k,v])=>lsSet(k,v));return Promise.resolve()},
+ set(k,v){return this.setMany({[k]:v})},
+ delMany(ks){if(this.mode==="idb")return this.run("readwrite",st=>{ks.forEach(k=>st.delete(k))});ks.forEach(k=>localStorage.removeItem(k));return Promise.resolve()},
+ del(k){return this.delMany([k])},
+ async loadAll(){const o={};for(const k of DATA_KEYS)o[k]=await this.get(k);return o},
+ clear(){if(this.mode==="idb")return this.run("readwrite",st=>{st.clear()});DATA_KEYS.forEach(k=>localStorage.removeItem(k));return Promise.resolve()},
+ async keys(){return this.mode==="idb"?this.run("readonly",st=>st.getAllKeys()):DATA_KEYS.filter(k=>localStorage.getItem(k)!=null)},
+ async dump(){const o={};for(const k of await this.keys())o[k]=await this.get(k);return JSON.stringify(o)}};
+// 数据在启动时异步读入；读完之前不允许写，避免用空数据覆盖已有记录
+let ready=false,locked=false,vaultRec=null,vaultKey=null,vaultSalt=null,secrets={},memKey="",chain=Promise.resolve();
+let entries=[],thoughts=[],practice=[],tomb={};
+// 所有写入排成一个队列，保证先后顺序
+const save=()=>{if(locked||!ready)return;if(vaultKey){const snap=JSON.stringify({entries,thoughts,practice,tomb,secrets});chain=chain.then(()=>vaultWrite(snap)).catch(e=>console.error(e))}
+ else{const d={qy_entries:entries,qy_thoughts:thoughts,qy_practice:practice,qy_tomb:tomb};chain=chain.then(()=>Store.setMany(d)).catch(e=>console.error(e))}};
 const DAY=864e5;
 const dayStart=t=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
 const avgOf=a=>a.length?a.reduce((x,y)=>x+y.mood,0)/a.length:null;
@@ -356,6 +413,7 @@ const inRange=(from,to)=>entries.filter(e=>e.t>=from&&e.t<to);
 /* ---------- 引导内容 ---------- */
 function breathSteps(){const s=[["先坐稳，让肩膀松下来，闭上眼睛或看向一个固定的点。",8]];for(let i=1;i<=4;i++){s.push([`第 ${i} 轮。用鼻子慢慢吸气。`,4],["屏住呼吸。",7],["用嘴巴缓缓呼气，像吹一根蜡烛。",8])}s.push(["很好。恢复自然呼吸，感受身体的平静。",8]);return s}
 const MEDS=[
+ {id:"breath1",title:"1 分钟呼吸",min:"约 1 分钟",desc:"吸 4 秒、呼 6 秒，先让身体慢下来",kinds:["anx","sad","tired","ok"],steps:[["找个舒服的姿势，让肩膀放松。",6],...Array.from({length:5},(_,i)=>[[`第 ${i+1} 次。慢慢吸气。`,4],["缓缓呼气，比吸气更长一点。",6]]).flat(),["很好，你已经给了自己一分钟。",4]]},
  {id:"breath",title:"4-7-8 呼吸",min:"约 1.5 分钟",desc:"吸 4 秒、停 7 秒、呼 8 秒，快速降低紧张",kinds:["anx"],scene:"rain",steps:breathSteps()},
  {id:"scan",title:"身体扫描",min:"约 4 分钟",desc:"从脚到头逐一放松，把注意力带回身体",kinds:["anx","tired"],scene:"ocean",steps:[
   ["找一个舒服的姿势，轻轻闭上眼睛。深呼吸三次。",15],["把注意力放到双脚。感受脚底与地面的接触，让脚趾放松。",30],["向上到小腿和膝盖。不用用力，只是觉察。",30],["来到大腿和髋部。每呼一口气，就让它们更沉一点。",30],["注意腹部。随着呼吸，一起一伏。",30],["放松胸口和后背。若有紧绷，只是看见它，不需要赶走。",30],["让肩膀从耳边落下来，手臂和手指都松开。",30],["最后是脖子、下巴、眼睛和额头。放松整张脸。",30],["慢慢深吸一口气，准备好了就缓缓睁开眼睛。",15]]},
@@ -370,50 +428,88 @@ const EXS=[
 const SCENES={rain:"🌧 雨声",ocean:"🌊 海浪",wind:"🍃 风声",night:"🌙 夜晚氛围",white:"☁ 白噪音"};
 const RECS={anx:{med:"breath",sc:"rain",ex:"walk"},sad:{med:"kind",sc:"night",ex:"walk"},tired:{med:"scan",sc:"ocean",ex:"neck"},ok:{med:"breath",sc:"wind",ex:"desk"}};
 
-/* ---------- 音频合成 ---------- */
-const Snd={ctx:null,master:null,bus:null,srcs:[],iv:[],cur:null,tm:null,left:0,
- init(){if(!this.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return false;this.ctx=new C();this.master=this.ctx.createGain();this.master.gain.value=(+$("#vol").value)/100;this.master.connect(this.ctx.destination)}if(this.ctx.state==="suspended")this.ctx.resume();return true},
- noise(type){const c=this.ctx,len=c.sampleRate*4,b=c.createBuffer(1,len,c.sampleRate),d=b.getChannelData(0);let l=0,b0=0,b1=0,b2=0;
-  for(let i=0;i<len;i++){const w=Math.random()*2-1;
-   if(type==="brown"){l=(l+.02*w)/1.02;d[i]=l*3.5}
-   else if(type==="pink"){b0=.99765*b0+w*.099046;b1=.963*b1+w*.2965164;b2=.57*b2+w*1.0526913;d[i]=(b0+b1+b2+w*.1848)*.25}
-   else d[i]=w*.5}
-  const s=c.createBufferSource();s.buffer=b;s.loop=true;this.srcs.push(s);return s},
- lfo(freq,depth,target){const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.frequency.value=freq;g.gain.value=depth;o.connect(g);g.connect(target);this.srcs.push(o);return o},
- filt(type,f,q){const n=this.ctx.createBiquadFilter();n.type=type;n.frequency.value=f;if(q)n.Q.value=q;return n},
- build(name){const c=this.ctx,bus=this.bus,g=c.createGain();
-  if(name==="rain"){const n=this.noise("pink"),hp=this.filt("highpass",500),lp=this.filt("lowpass",7500);g.gain.value=.55;n.connect(hp);hp.connect(lp);lp.connect(g);g.connect(bus);n.start();
-   this.iv.push(setInterval(()=>{if(!this.bus)return;const o=c.createOscillator(),e=c.createGain();o.frequency.value=1800+Math.random()*2600;e.gain.value=0;o.connect(e);e.connect(bus);const t=c.currentTime;e.gain.linearRampToValueAtTime(.025,t+.005);e.gain.exponentialRampToValueAtTime(.0001,t+.06);o.start(t);o.stop(t+.08)},140))}
-  else if(name==="ocean"){const n=this.noise("brown"),lp=this.filt("lowpass",900);g.gain.value=.5;n.connect(lp);lp.connect(g);g.connect(bus);n.start();const l=this.lfo(.09,.32,g.gain);l.start()}
-  else if(name==="wind"){const n=this.noise("pink"),bp=this.filt("bandpass",550,.9);g.gain.value=.7;n.connect(bp);bp.connect(g);g.connect(bus);n.start();const l=this.lfo(.06,260,bp.frequency);l.start();const l2=this.lfo(.13,.2,g.gain);l2.start()}
-  else if(name==="night"){g.gain.value=1;g.connect(bus);[110,164.81,220,277.18,329.63].forEach((f,i)=>{const o=c.createOscillator(),e=c.createGain();o.type="sine";o.frequency.value=f;e.gain.value=.05/(1+i*.25);o.connect(e);e.connect(g);o.start();this.srcs.push(o);const l=this.lfo(.05+i*.017,.02,e.gain);l.start()});
-   const n=this.noise("brown"),lp=this.filt("lowpass",400),ng=c.createGain();ng.gain.value=.12;n.connect(lp);lp.connect(ng);ng.connect(bus);n.start()}
-  else{const n=this.noise("white"),lp=this.filt("lowpass",7000);g.gain.value=.22;n.connect(lp);lp.connect(g);g.connect(bus);n.start()}},
- play(name,mins){if(!this.init()){alert_("当前浏览器不支持音频播放");return}this.stop(true);const c=this.ctx;this.bus=c.createGain();this.bus.gain.value=0;this.bus.connect(this.master);this.build(name);this.bus.gain.linearRampToValueAtTime(1,c.currentTime+2);this.cur=name;
-  clearInterval(this.tm);if(mins>0){this.left=mins*60;this.tm=setInterval(()=>{this.left--;if(this.left<=0)this.stop();renderNow()},1000)}else this.left=0;renderNow();renderScenes()},
- stop(quick){clearInterval(this.tm);this.iv.forEach(clearInterval);this.iv=[];const bus=this.bus,srcs=this.srcs;this.bus=null;this.srcs=[];this.cur=null;this.left=0;
-  if(bus){const c=this.ctx,t=c.currentTime,fade=quick?.15:1.5;bus.gain.cancelScheduledValues(t);bus.gain.setValueAtTime(bus.gain.value,t);bus.gain.linearRampToValueAtTime(0,t+fade);setTimeout(()=>srcs.forEach(s=>{try{s.stop()}catch(e){}}),fade*1000+100)}
-  renderNow();renderScenes()}};
+/* ---------- 音频：预先渲染成可无缝循环的音频，用系统播放器播放（锁屏可继续） ---------- */
+const AUDIO_SR=22050,LOOP_S=30,XFADE_S=3;
+function noiseArr(type,n){const d=new Float32Array(n);let l=0,b0=0,b1=0,b2=0;for(let i=0;i<n;i++){const w=Math.random()*2-1;
+ if(type==="brown"){l=(l+.02*w)/1.02;d[i]=l*3.5}else if(type==="pink"){b0=.99765*b0+w*.099046;b1=.963*b1+w*.2965164;b2=.57*b2+w*1.0526913;d[i]=(b0+b1+b2+w*.1848)*.25}else d[i]=w*.5}return d}
+function buildScene(ctx,name,dur){const n=Math.ceil(dur*ctx.sampleRate),out=ctx.createGain();out.gain.value=.9;out.connect(ctx.destination);
+ const src=type=>{const b=ctx.createBuffer(1,n,ctx.sampleRate);b.copyToChannel(noiseArr(type,n),0);const s=ctx.createBufferSource();s.buffer=b;s.start(0);return s};
+ const filt=(type,f,q)=>{const x=ctx.createBiquadFilter();x.type=type;x.frequency.value=f;if(q)x.Q.value=q;return x};
+ const lfo=(freq,depth,target)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=freq;g.gain.value=depth;o.connect(g);g.connect(target);o.start(0)};
+ const g=ctx.createGain();g.connect(out);
+ if(name==="rain"){const s=src("pink"),hp=filt("highpass",500),lp=filt("lowpass",7500);g.gain.value=.55;s.connect(hp);hp.connect(lp);lp.connect(g);
+  for(let t=.05;t<dur-.1;t+=.09+Math.random()*.1){const o=ctx.createOscillator(),e=ctx.createGain();o.frequency.value=1800+Math.random()*2600;e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(.025,t+.005);e.gain.exponentialRampToValueAtTime(.0001,t+.06);o.connect(e);e.connect(out);o.start(t);o.stop(t+.08)}}
+ else if(name==="ocean"){const s=src("brown"),lp=filt("lowpass",900);g.gain.value=.5;s.connect(lp);lp.connect(g);lfo(.1,.32,g.gain)}
+ else if(name==="wind"){const s=src("pink"),bp=filt("bandpass",550,.9);g.gain.value=.7;s.connect(bp);bp.connect(g);lfo(.0667,260,bp.frequency);lfo(.1333,.2,g.gain)}
+ else if(name==="night"){[110,164.81,220,277.18,329.63].forEach((f,i)=>{const o=ctx.createOscillator(),e=ctx.createGain();o.frequency.value=f;e.gain.value=.05/(1+i*.25);o.connect(e);e.connect(g);o.start(0);lfo(.0333*(i+1)/2,.02,e.gain)});
+  const s=src("brown"),lp=filt("lowpass",400),ng=ctx.createGain();ng.gain.value=.12;s.connect(lp);lp.connect(ng);ng.connect(out)}
+ else{const s=src("white"),lp=filt("lowpass",7000);g.gain.value=.22;s.connect(lp);lp.connect(g)}}
+// 把多渲染的尾部与开头做等功率交叉淡化，得到首尾相接没有断点的循环
+function loopify(x,sr,N,F){const L=N*sr,Fs=F*sr,o=new Float32Array(L);for(let i=0;i<L;i++){if(i<Fs){const t=i/Fs;o[i]=x[i]*Math.sin(t*Math.PI/2)+x[i+L]*Math.cos(t*Math.PI/2)}else o[i]=x[i]}return o}
+function wavBlob(d,sr){const b=new ArrayBuffer(44+d.length*2),v=new DataView(b),w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))};
+ w(0,"RIFF");v.setUint32(4,36+d.length*2,true);w(8,"WAVE");w(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,"data");v.setUint32(40,d.length*2,true);
+ for(let i=0;i<d.length;i++){const x=Math.max(-1,Math.min(1,d[i]));v.setInt16(44+i*2,x<0?x*32768:x*32767,true)}return new Blob([b],{type:"audio/wav"})}
+const SILENCE=URL.createObjectURL(wavBlob(new Float32Array(2205),22050));
+const Snd={el:null,cur:null,endAt:0,tm:null,fadeIv:null,cache:{},vol:.6,
+ get left(){return this.endAt?Math.max(0,Math.ceil((this.endAt-Date.now())/1000)):0},
+ audio(){if(!this.el){const a=new Audio();a.loop=true;a.preload="auto";a.setAttribute("playsinline","");a.addEventListener("timeupdate",()=>this.tick());this.el=a}return this.el},
+ async render(name){if(this.cache[name])return this.cache[name];const C=window.OfflineAudioContext||window.webkitOfflineAudioContext;if(!C)throw new Error("当前浏览器不支持生成音频");
+  const ctx=new C(1,AUDIO_SR*(LOOP_S+XFADE_S),AUDIO_SR);buildScene(ctx,name,LOOP_S+XFADE_S);const buf=await ctx.startRendering();
+  return this.cache[name]=URL.createObjectURL(wavBlob(loopify(buf.getChannelData(0),AUDIO_SR,LOOP_S,XFADE_S),AUDIO_SR))},
+ async play(name,mins){const a=this.audio();this.stop(true);this.cur=name;this.endAt=mins>0?Date.now()+mins*60000:0;
+  // 在点击的同一时刻先播一小段静音，解锁 iOS 的播放限制；真正的音频生成后再替换
+  try{a.src=SILENCE;a.volume=0;a.play().catch(()=>{})}catch(e){}
+  renderNow();renderScenes();
+  let url;try{url=await this.render(name)}catch(e){if(this.cur===name){this.cur=null;this.endAt=0;alert_(e.message);renderNow();renderScenes()}return}
+  if(this.cur!==name)return;
+  a.src=url;a.volume=0;try{await a.play()}catch(e){if(this.cur===name){this.cur=null;this.endAt=0;renderNow();renderScenes()}return}
+  this.fade(this.vol,2000);this.session(name);clearInterval(this.tm);this.tm=setInterval(()=>this.tick(),1000)},
+ tick(){if(!this.cur)return;if(this.endAt&&Date.now()>=this.endAt){this.stop();return}if(!Guide.g&&!Guide.pending)renderNow()},
+ fade(to,ms,done){clearInterval(this.fadeIv);const a=this.el;if(!a)return;const from=a.volume,t0=Date.now();this.fadeIv=setInterval(()=>{const k=Math.min(1,(Date.now()-t0)/ms);a.volume=Math.max(0,Math.min(1,from+(to-from)*k));if(k>=1){clearInterval(this.fadeIv);if(done)done()}},50)},
+ stop(quick){clearInterval(this.tm);const a=this.el;this.cur=null;this.endAt=0;
+  if(a){if(quick){clearInterval(this.fadeIv);a.pause()}else this.fade(0,1200,()=>{if(!this.cur)a.pause()})}
+  try{if("mediaSession"in navigator)navigator.mediaSession.playbackState="none"}catch(e){}renderNow();renderScenes()},
+ setVol(v){this.vol=v;if(this.el&&this.cur){clearInterval(this.fadeIv);this.el.volume=v}},
+ session(name){if(!("mediaSession"in navigator))return;try{navigator.mediaSession.metadata=new MediaMetadata({title:SCENES[name].slice(2),artist:"晴一日记",artwork:[{src:"icon-512.png",sizes:"512x512",type:"image/png"}]});
+  navigator.mediaSession.setActionHandler("pause",()=>this.stop());navigator.mediaSession.setActionHandler("stop",()=>this.stop());navigator.mediaSession.setActionHandler("play",()=>{if(!this.cur)this.play(name,0)});navigator.mediaSession.playbackState="playing"}catch(e){}}};
 function alert_(m){$("#meMsg").textContent=m}
 
-/* ---------- 引导执行器 ---------- */
-const Guide={g:null,i:0,left:0,iv:null,total:0,elapsed:0,
- start(g){this.stop(true);if(!window.speechSynthesis)$("#voice").checked=false;
+/* ---------- 引导：开始前评分 → 按时间戳计时（切到后台不漂移）→ 结束后评分 ---------- */
+const Guide={g:null,pending:null,i:0,stepEnd:0,iv:null,total:0,done:0,pre:null,
+ get left(){return Math.max(0,Math.ceil((this.stepEnd-Date.now())/1000))},
+ get elapsed(){if(!this.g)return 0;const s=this.g.steps[this.i];return this.done+(s?s[1]-this.left:0)},
+ start(g){this.stop(true);this.pending=g;renderNow()},
+ begin(pre){const g=this.pending;this.pending=null;if(!g)return;if(!window.speechSynthesis)$("#voice").checked=false;
   if(g.scene&&$("#bgsound").checked&&!Snd.cur)Snd.play(g.scene,0);
-  this.g=g;this.i=-1;this.total=g.steps.reduce((a,s)=>a+s[1],0);this.elapsed=0;
-  this.next();this.iv=setInterval(()=>{this.left--;this.elapsed++;if(this.left<=0)this.next();else renderNow()},1000)},
- next(){this.i++;if(this.i>=this.g.steps.length){this.finish();return}const s=this.g.steps[this.i];this.left=s[1];this.say(s[0]);renderNow()},
+  this.g=g;this.pre=pre;this.i=-1;this.done=0;this.total=g.steps.reduce((a,s)=>a+s[1],0);this.next();clearInterval(this.iv);this.iv=setInterval(()=>this.tick(),500)},
+ tick(){if(!this.g)return;let guard=0;while(this.g&&Date.now()>=this.stepEnd&&guard++<200)this.next();if(this.g)renderNow()},
+ // 补算（页面被挂起后）时从上一步结束的时刻接着算；手动跳过则从现在开始
+ next(manual){if(!this.g)return;const now=Date.now(),base=!manual&&this.i>=0&&this.stepEnd&&this.stepEnd<now?this.stepEnd:now;if(this.i>=0&&this.g.steps[this.i])this.done+=this.g.steps[this.i][1];this.i++;if(this.i>=this.g.steps.length){this.finish();return}
+  const s=this.g.steps[this.i];this.stepEnd=base+s[1]*1000;if(this.stepEnd>now)this.say(s[0]);renderNow()},
  say(t){if(!$("#voice").checked||!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang="zh-CN";u.rate=.85;const v=speechSynthesis.getVoices().find(v=>/zh/i.test(v.lang));if(v)u.voice=v;speechSynthesis.speak(u)}catch(e){}},
- finish(){clearInterval(this.iv);const done=this.g;this.g=null;practice.push({id:"p"+Date.now(),t:Date.now(),g:done.title});save();try{speechSynthesis.cancel()}catch(e){}if(Snd.cur&&done.scene)Snd.stop();renderNow(done)},
- stop(silent){clearInterval(this.iv);this.g=null;try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}if(!silent)renderNow()}};
+ finish(){clearInterval(this.iv);const g=this.g;this.g=null;const p={id:"p"+Date.now()+Math.random().toString(36).slice(2,5),t:Date.now(),g:g.title,gid:g.id,pre:this.pre||null,post:null};practice.push(p);save();
+  try{speechSynthesis.cancel()}catch(e){}if(Snd.cur&&g.scene)Snd.stop();finished={g,pid:p.id,post:null};renderNow()},
+ stop(silent){clearInterval(this.iv);this.g=null;this.pending=null;try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}if(!silent)renderNow()}};
 let finished=null;
 function fmtT(s){return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
-function renderNow(done){const n=$("#now");n.innerHTML="";
- if(done){finished=done}
+/* 练习效果：同一个练习前后评分的平均变化（单位：心情档位） */
+const ALL_GUIDES=()=>[...MEDS,...EXS];
+function guideIdOf(p){if(p.gid)return p.gid;const g=ALL_GUIDES().find(x=>x.title===p.g);return g?g.id:null}
+function effectOf(id){const ps=practice.filter(p=>guideIdOf(p)===id&&p.pre&&p.post);if(!ps.length)return null;return{n:ps.length,d:ps.reduce((a,p)=>a+(p.post-p.pre),0)/ps.length}}
+const effText=e=>(e.d>0?"+":"")+e.d.toFixed(1)+" 档（"+e.n+" 次）";
+function rateRow(onPick){return el("div",{class:"rate"},MOODS.map(m=>el("button",{"aria-label":m.t,title:m.t,text:m.f,onclick:()=>onPick(m.v)})))}
+function renderNow(){const n=$("#now");n.innerHTML="";
+ if(Guide.pending){const g=Guide.pending;n.classList.remove("hide");
+  n.append(el("div",{class:"row sub"},el("b",{text:g.title}),el("span",{text:g.min})),el("div",{class:"big",text:"开始前，此刻感觉怎么样？"}),rateRow(v=>Guide.begin(v)),
+   el("p",{class:"sub",text:"练完再打一次分，晴一会记住哪些练习对你最有用。"}),el("div",{class:"row"},el("button",{class:"ghost",text:"跳过评分，直接开始",onclick:()=>Guide.begin(null)}),el("button",{class:"ghost",text:"取消",onclick:()=>Guide.stop()})));return}
  if(Guide.g){const g=Guide.g,s=g.steps[Guide.i];n.classList.remove("hide");
-  n.append(el("div",{class:"row sub"},el("b",{text:g.title}),el("span",{text:`第 ${Guide.i+1}/${g.steps.length} 步 · 本步剩 ${Guide.left}s`})),el("div",{class:"big",text:s[0]}),el("div",{class:"prog"},el("i",{style:`width:${Math.min(100,Guide.elapsed/Guide.total*100)}%`})),el("div",{class:"row",style:"margin-top:10px"},el("button",{class:"ghost",text:"结束",onclick:()=>{Guide.stop();Snd.stop()}}),el("button",{class:"ghost",text:"跳过此步",onclick:()=>Guide.next()}),el("span",{class:"sub",text:"总时长 "+fmtT(Guide.total-Guide.elapsed)+" 后结束"})));return}
+  n.append(el("div",{class:"row sub"},el("b",{text:g.title}),el("span",{text:`第 ${Guide.i+1}/${g.steps.length} 步 · 本步剩 ${Guide.left}s`})),el("div",{class:"big",text:s[0]}),el("div",{class:"prog"},el("i",{style:`width:${Math.min(100,Guide.elapsed/Guide.total*100)}%`})),el("div",{class:"row",style:"margin-top:10px"},el("button",{class:"ghost",text:"结束",onclick:()=>{Guide.stop();Snd.stop()}}),el("button",{class:"ghost",text:"跳过此步",onclick:()=>Guide.next(true)}),el("span",{class:"sub",text:"总时长 "+fmtT(Math.max(0,Guide.total-Guide.elapsed))+" 后结束"})));return}
  if(Snd.cur){n.classList.remove("hide");n.append(el("div",{class:"row sub"},el("b",{text:"正在播放 · "+SCENES[Snd.cur]}),el("span",{text:Snd.left?fmtT(Snd.left)+" 后关闭":"不定时"})),el("div",{class:"row",style:"margin-top:8px"},el("button",{class:"ghost",text:"停止",onclick:()=>Snd.stop()})));return}
- if(finished){n.classList.remove("hide");const f=finished;n.append(el("div",{class:"big",text:"完成了「"+f.title+"」"}),el("p",{class:"sub",text:"现在感觉怎么样？可以回到「今日」记一笔，看看变化。"}),el("div",{class:"row"},el("button",{class:"ghost",text:"去记录",onclick:()=>{finished=null;goTab("log");renderNow()}}),el("button",{class:"ghost",text:"关闭",onclick:()=>{finished=null;renderNow()}})));return}
+ if(finished){n.classList.remove("hide");const f=finished,p=practice.find(x=>x.id===f.pid)||{};
+  n.append(el("div",{class:"big",text:"完成了「"+f.g.title+"」"}));
+  if(!f.post){n.append(el("p",{class:"sub",text:"现在感觉怎么样？"}),rateRow(v=>{f.post=v;p.post=v;save();render();renderNow()}))}
+  else{const d=p.pre?f.post-p.pre:null;n.append(el("p",{text:d===null?"已记下，谢谢。":d>0?`比开始前好了 ${d} 档。`:d===0?"和开始前差不多。有些练习需要多做几次才见效。":"比开始前低了一些，这很正常。下次可以换一个练习试试。"}))}
+  n.append(el("div",{class:"row"},el("button",{class:"ghost",text:"去记录",onclick:()=>{finished=null;goTab("log");renderNow()}}),el("button",{class:"ghost",text:"关闭",onclick:()=>{finished=null;renderNow()}})));return}
  n.classList.add("hide")}
 
 /* ---------- 标签与表单 ---------- */
@@ -438,8 +534,10 @@ function fmt(t){const d=new Date(t);return `${d.getMonth()+1}/${d.getDate()} ${p
 const find=(a,id)=>a.find(x=>x.id===id);
 
 function recRow(kind,label,title,desc,btn,fn){return el("div",{class:"rec"},el("span",{class:"k",text:kind}),el("div",{class:"x"},el("b",{text:title}),el("p",{text:desc})),el("button",{class:"ghost",text:btn,onclick:fn}))}
-function recsFor(k){const r=RECS[k],m=MEDS.find(x=>x.id===r.med),x=EXS.find(x=>x.id===r.ex);
- return [recRow("冥想","",m.title,m.desc+" · "+m.min,"开始",()=>{goTab("care");Guide.start(m)}),recRow("音乐","",SCENES[r.sc].slice(2),"实时合成的背景音，帮你慢慢静下来","播放",()=>{goTab("care");Snd.play(r.sc,+$("#sleepT").value)}),recRow("运动","",x.title,x.desc+" · "+x.min,"开始",()=>{goTab("care");Guide.start(x)})]}
+function pickBest(list,k,defId){const best=list.filter(x=>x.kinds.includes(k)).map(x=>({x,e:effectOf(x.id)})).filter(o=>o.e&&o.e.n>=2&&o.e.d>0).sort((a,b)=>b.e.d-a.e.d||b.e.n-a.e.n)[0];
+ return best?{g:best.x,why:`你做过 ${best.e.n} 次，平均让心情好了 ${best.e.d.toFixed(1)} 档`}:{g:list.find(x=>x.id===defId),why:null}}
+function recsFor(k){const r=RECS[k],pm=pickBest(MEDS,k,r.med),px=pickBest(EXS,k,r.ex),m=pm.g,x=px.g;
+ return [recRow("冥想","",m.title,(pm.why||m.desc)+" · "+m.min,"开始",()=>{goTab("care");Guide.start(m)}),recRow("音乐","",SCENES[r.sc].slice(2),"生成的背景音，锁屏后也能继续播放","播放",()=>{goTab("care");Snd.play(r.sc,+$("#sleepT").value)}),recRow("运动","",x.title,(px.why||x.desc)+" · "+x.min,"开始",()=>{goTab("care");Guide.start(x)})]}
 
 $("#save").onclick=()=>{
  if(!S.mood){$("#save").textContent="请先选择一个心情";setTimeout(()=>$("#save").textContent="记录这一刻",1500);return}
@@ -449,6 +547,7 @@ $("#save").onclick=()=>{
  const k=kindOf(e),a=$("#after");a.hidden=false;a.innerHTML="";
  if(e.risk){a.append(el("h2",{text:"已记录"}),el("p",{style:"margin:0 0 8px",text:"谢谢你愿意写下来。你不需要一个人扛着，现在就可以找人说说。"}),el("div",{class:"row"},el("b",{text:"心理援助热线 12356"}),el("button",{class:"ghost",text:"查看求助方式",onclick:()=>openSupport("risk")})));openSupport("risk")}
  else a.append(el("h2",{text:"已记录 ✓"}),el("p",{style:"margin:0 0 4px",text:(e.mood<=2?"听起来今天不太容易。":"谢谢你记下这一刻。")+(e.trigs.length?`看起来「${e.trigs[0]}」对你有影响。`:e.pos.length?`「${e.pos[0]}」让你感觉不错，值得多留一点时间给它。`:"")+(e.mood>=4?"想延续这份好状态，可以试试：":"试试下面一个小练习：")}),recsFor(k)[0]);
+ {const rn=entries.filter(x=>!x.demo).length;if(rn<3)a.append(el("p",{class:"sub",style:"margin-top:8px",text:`再记 ${3-rn} 条，「洞察」里会出现你的第一份发现。`}));else if(rn===3)a.append(el("div",{class:"row",style:"margin-top:8px"},el("span",{class:"sub",text:"你的第一份发现已经生成。"}),el("button",{class:"ghost",text:"去看看",onclick:()=>goTab("insight")})))}
  S.mood=0;S.emos.clear();S.trigs.clear();S.goods.clear();$("#note").value="";document.querySelectorAll(".chip,.moods button").forEach(b=>b.setAttribute("aria-pressed","false"));syncReasons();render()};
 $("#filter").onchange=()=>{shown=6;renderList()};
 $("#search").oninput=()=>{shown=6;renderList()};
@@ -511,13 +610,23 @@ function renderReport(){const R=weekReport(rpW);lastReport=R;const b=$("#rpBody"
  if(R.kind){const r=RECS[R.kind],m=MEDS.find(x=>x.id===r.med);b.append(el("div",{class:"rec"},el("span",{class:"k",text:"推荐"}),el("div",{class:"x"},el("b",{text:m.title}),el("p",{text:"根据本周的"+KNAME[R.kind]+"为你选择"})),el("button",{class:"ghost",text:"去试试",onclick:()=>{goTab("care");Guide.start(m)}})))}
  document.querySelectorAll("#rpTabs button").forEach(x=>x.classList.toggle("on",+x.dataset.w===rpW));$("#aiOut").classList.add("hide")}
 document.querySelectorAll("#rpTabs button").forEach(b=>b.onclick=()=>{rpW=+b.dataset.w;renderReport()});
+async function aiViaServer(notes,out){
+ try{const r=await fetch(SB+"/functions/v1/ai",{method:"POST",headers:{"Content-Type":"application/json",apikey:SBK,Authorization:"Bearer "+SBK},body:JSON.stringify({stats:lastReport.paras,notes:notes?notes.split("\n"):[]})});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===503&&j.error==="not configured"){out.textContent="AI 复盘服务还没有开通。上方的本地周报不受影响。";$("#aiHint").textContent="";return}
+  if(r.status===429){out.textContent="今天请求有点多，请过一会儿再试。上方的本地周报不受影响。";return}
+  if(j.crisis){out.textContent="这一周的记录里有让人担心的内容，AI 复盘先暂停了。如果你有伤害自己的想法，请拨打心理援助热线 12356，或联系身边信任的人。";openSupport("risk");return}
+  if(!r.ok||!j.text)throw new Error(j.error||("状态 "+r.status));
+  out.textContent=j.text;$("#aiHint").textContent="以上由 AI 生成，仅供参考，不是诊断。"}
+ catch(e){out.textContent="生成失败："+e.message+"。上方的本地周报不受影响。"}}
 $("#rpCopy").onclick=async()=>{const t="晴一日记 · 情绪周报\n"+lastReport.paras.join("\n");try{await navigator.clipboard.writeText(t);$("#rpCopy").textContent="已复制 ✓"}catch(e){const ta=el("textarea",{});ta.value=t;$("#rpBody").append(ta);ta.select();$("#rpCopy").textContent="请手动复制"}setTimeout(()=>$("#rpCopy").textContent="复制周报",2000)};
 $("#rpAI").onclick=async()=>{const cfg=getAI(),out=$("#aiOut"),btn=$("#rpAI");
- if(!cfg||!cfg.key||!cfg.ok){$("#aiHint").textContent="还没配置 AI。到「设置」填写你自己的接口和密钥，并勾选数据发送确认。下方是本地生成的周报，不需要联网。";return}
+ if(!cfg.ok){$("#aiHint").textContent="使用 AI 复盘前，请先到「设置 → AI 复盘」勾选数据发送同意。上方的本地周报不需要联网。";return}
  if(!lastReport.es.length){$("#aiHint").textContent="这段时间没有记录，没法复盘。";return}
  if(lastReport.es.some(e=>e.risk||isRisk(e.note))){out.classList.remove("hide");out.textContent="这一周的记录里有让人担心的内容，AI 复盘先暂停了，这些文字也不会发送出去。比起分析，现在更重要的是照顾好自己：如果你有伤害自己的想法，请拨打心理援助热线 12356，或联系身边信任的人。";$("#aiHint").textContent="";openSupport("risk");return}
  btn.disabled=true;btn.textContent="生成中…";out.classList.remove("hide");out.textContent="正在整理你这一周的情绪……";
  const notes=lastReport.es.filter(e=>e.note).slice(0,10).map(e=>`${fmt(e.t)} 心情${e.mood}/5 ${e.emos.join("、")}：${e.note.slice(0,80)}`).join("\n");
+ if(!cfg.key){await aiViaServer(notes,out);btn.disabled=false;btn.textContent="AI 个性化复盘";return}
  try{const r=await fetch(cfg.base.replace(/\/$/,"")+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.key},body:JSON.stringify({model:cfg.model,temperature:.7,messages:[{role:"system",content:"你是温和、不说教的情绪陪伴者，不做医疗诊断。根据用户一周的情绪数据写一段 250 字以内的中文复盘：先共情，再指出 1–2 个规律，最后给 2 条具体、容易做到的小行动。不要使用列表符号，语气像朋友。不做诊断，不给药物或治疗建议。如果内容涉及自伤、自杀或其他危险，不要分析，只表达关心，并建议立即拨打心理援助热线 12356，有立即危险时拨打 120。"},{role:"user",content:"本地统计：\n"+lastReport.paras.join("\n")+"\n\n部分日记：\n"+(notes||"（无文字）")}]})});
   if(!r.ok)throw new Error("接口返回 "+r.status);const j=await r.json();out.textContent=j.choices[0].message.content.trim();$("#aiHint").textContent="以上由你配置的模型生成，仅供参考。"}
  catch(e){out.textContent="生成失败："+e.message+"。请检查接口地址、模型名和密钥，或确认该服务允许浏览器跨域访问。本地周报仍然可用。"}
@@ -536,25 +645,31 @@ function renderInsight(){
  if(gr.length)barRows($("#goodbars"),gr.map(r=>({...r,w:(r.n/gx*100).toFixed(0)})),"a",r=>`${r.n}次·${r.avg.toFixed(1)}`);else $("#goodbars").innerHTML='<p class="sub">心情不错时勾选原因，这里会记下哪些事在滋养你。</p>';
  const ec={};entries.filter(e=>e.t>now-30*DAY).forEach(e=>e.emos.forEach(x=>ec[x]=(ec[x]||0)+1));const er=Object.entries(ec).map(([k,n])=>({k,n})).sort((a,b)=>b.n-a.n),mx=er[0]?er[0].n:1;
  if(er.length)barRows($("#emobars"),er.map(r=>({...r,w:(r.n/mx*100).toFixed(0)})),"a",r=>r.n+"次");else $("#emobars").innerHTML='<p class="sub">选择具体情绪后，这里显示构成。</p>';
+ const effs=ALL_GUIDES().map(g=>({g,e:effectOf(g.id)})).filter(o=>o.e).sort((a,b)=>b.e.d-a.e.d);
+ if(effs.length){const mx=Math.max(1,...effs.map(o=>Math.abs(o.e.d)));barRows($("#effbars"),effs.map(o=>({k:o.g.title,w:(Math.max(0,o.e.d)/mx*100).toFixed(0),e:o.e})),"a",r=>effText(r.e))}
+ else $("#effbars").innerHTML='<p class="sub">做练习时前后各打一次分，这里会显示哪些练习对你最有用。</p>';
  renderReport()}
 
 function renderScenes(){const b=$("#scenes");b.innerHTML="";Object.entries(SCENES).forEach(([k,v])=>b.append(el("button",{class:"chip","aria-pressed":String(Snd.cur===k),text:v,onclick:()=>Snd.cur===k?Snd.stop():Snd.play(k,+$("#sleepT").value)})))}
-function guideRow(g){return el("div",{class:"rec"},el("div",{class:"x"},el("b",{text:g.title}),el("p",{text:g.min+" · "+g.desc})),el("button",{class:"ghost",text:"开始",onclick:()=>Guide.start(g)}))}
+function guideRow(g){const e=effectOf(g.id);return el("div",{class:"rec"},el("div",{class:"x"},el("b",{text:g.title}),el("p",null,g.min+" · "+g.desc,e?el("span",{class:"eff",text:" · 你的效果 "+effText(e)}):null)),el("button",{class:"ghost",text:"开始",onclick:()=>Guide.start(g)}))}
 function renderCare(){const e=entries[0],k=e?kindOf(e):"anx";
  $("#recTitle").textContent=e?`根据你最近的「${e.emos[0]||MOODS[e.mood-1].t}」，为你推荐`:"为你推荐";
  const r=$("#recs");r.innerHTML="";recsFor(k).forEach(x=>r.append(x));
  $("#quote").textContent=QUOTES[new Date().getDate()%QUOTES.length];
  const m=$("#meds");m.innerHTML="";MEDS.forEach(g=>m.append(guideRow(g)));const x=$("#exs");x.innerHTML="";EXS.forEach(g=>x.append(guideRow(g)));renderScenes()}
-$("#vol").oninput=e=>{if(Snd.master)Snd.master.gain.value=e.target.value/100};
+$("#vol").oninput=e=>Snd.setVol(e.target.value/100);
 
 const riskRecent=()=>entries.some(e=>!e.demo&&e.t>Date.now()-7*DAY&&(e.risk||isRisk(e.note)))||thoughts.some(x=>x.t>Date.now()-7*DAY&&x.risk);
 function alertHtml(box){const risk=riskRecent(),low=lowAlertNeeded();box.classList.toggle("hide",!risk&&!low);box.innerHTML="";if(!risk&&!low)return;
  box.append(el("span",{text:risk?"最近的记录里有让人担心的内容。你的感受很重要，请不要一个人扛。":"最近几天你的心情一直偏低。这很不容易，也不是你的错。可以先试一个小练习，或者找信任的人聊聊。"}),el("div",{class:"row",style:"margin-top:8px"},el("b",{text:"心理援助热线 12356"}),el("button",{class:"ghost",text:"更多求助方式",onclick:()=>openSupport(risk?"risk":"help")})))}
 
 /* ---------- 设置与数据 ---------- */
-const getAI=()=>{const c=lsGet("qy_ai",{});return{base:c.base||"https://api.openai.com/v1",model:c.model||"",ok:!!c.ok,key:(secrets.ai&&secrets.ai.key)||memKey}};
-function initAIUI(){const c=lsGet("qy_ai",{});$("#aiBase").value=c.base||"";$("#aiModel").value=c.model||"";$("#aiOk").checked=!!c.ok;$("#aiKey").value=getAI().key}
-$("#aiSave").onclick=()=>{const base=$("#aiBase").value.trim()||"https://api.openai.com/v1",key=$("#aiKey").value.trim();lsSet("qy_ai",{base,model:$("#aiModel").value.trim(),ok:$("#aiOk").checked});memKey=key;
+// AI 同意带版本号：v2 起默认经服务器转发，旧版的同意不能沿用
+const AI_OKV=2;
+const getAI=()=>{const c=lsGet("qy_ai",{});return{base:c.base||"https://api.openai.com/v1",model:c.model||"",ok:!!c.ok&&c.okv>=AI_OKV,key:(secrets.ai&&secrets.ai.key)||memKey}};
+$("#aiOk").onchange=e=>{const c=lsGet("qy_ai",{});c.ok=e.target.checked;c.okv=AI_OKV;lsSet("qy_ai",c)};
+function initAIUI(){const c=lsGet("qy_ai",{});$("#aiBase").value=c.base||"";$("#aiModel").value=c.model||"";$("#aiOk").checked=getAI().ok;$("#aiKey").value=getAI().key}
+$("#aiSave").onclick=()=>{const base=$("#aiBase").value.trim()||"https://api.openai.com/v1",key=$("#aiKey").value.trim();lsSet("qy_ai",{base,model:$("#aiModel").value.trim(),ok:$("#aiOk").checked,okv:AI_OKV});memKey=key;
  if(vaultKey){if(key)secrets.ai={key};else delete secrets.ai;save();$("#meMsg").textContent="AI 设置已保存，密钥已加密存放在本机。"}else $("#meMsg").textContent="AI 设置已保存。未启用本机加密，密钥只在本次打开期间有效，不会写入磁盘。"};
 initAIUI();
 $("#exp").onclick=()=>{const u=URL.createObjectURL(new Blob([JSON.stringify({app:"qingyi",entries},null,1)],{type:"application/json"}));const a=el("a",{href:u,download:"qingyi-backup.json"});document.body.append(a);a.click();a.remove();$("#meMsg").textContent=`已导出 ${entries.length} 条记录。备份文件没有加密，请妥善保管。若浏览器没有下载，请改用普通浏览器标签打开本页再试。`};
@@ -582,7 +697,7 @@ const consented=()=>{const c=prefs0().consent;return !!(c&&c.v>=CONSENT_V)};
 const cUI=()=>{$("#cOk").disabled=!($("#cAgree").checked&&$("#cAge").checked)};
 $("#cAgree").onchange=cUI;$("#cAge").onchange=cUI;
 $("#cNo").onclick=()=>{$("#cMsg").textContent="没关系。在你同意之前，晴一日记不会保存任何内容。你可以先读一读隐私政策，或直接关闭这个页面。"};
-$("#cOk").onclick=()=>{const p=prefs0();p.consent={v:CONSENT_V,t:Date.now()};savePrefs(p);$("#consent").classList.add("hide");showLock()};
+$("#cOk").onclick=()=>{const p=prefs0();p.consent={v:CONSENT_V,t:Date.now()};savePrefs(p);$("#consent").classList.add("hide");showLock();renderOnboard()};
 const AGREE={sb:"#sbAgree",gist:"#syAgree",push:"#pushAgree"};
 const agreed=k=>{const a=prefs0().agree;return !!(a&&a[k])};
 function needAgree(k,msg){const box=$(AGREE[k]);if(box.checked){const p=prefs0();p.agree=p.agree||{};p.agree[k]=p.agree[k]||Date.now();savePrefs(p);return true}msg("请先勾选上方的数据存储同意项。");box.focus();return false}
@@ -594,7 +709,7 @@ async function sha(s){return b64(new Uint8Array(await crypto.subtle.digest("SHA-
 
 /* --- 本机加密（口令 → PBKDF2 → AES-GCM），令牌和密钥只存在加密保险箱或内存里 --- */
 async function deriveKey(pass,salt){const m=await crypto.subtle.importKey("raw",enc.encode(pass),"PBKDF2",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},m,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}
-async function vaultWrite(snap){const iv=crypto.getRandomValues(new Uint8Array(12)),ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},vaultKey,enc.encode(snap)));lsSet("qy_vault",{v:1,salt:b64(vaultSalt),iv:b64(iv),ct:b64(ct)})}
+async function vaultWrite(snap){const iv=crypto.getRandomValues(new Uint8Array(12)),ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},vaultKey,enc.encode(snap)));vaultRec={v:1,salt:b64(vaultSalt),iv:b64(iv),ct:b64(ct)};await Store.set("qy_vault",vaultRec)}
 function vState(){$("#vState").textContent=vaultKey?"本机数据：已加密 ✓":"本机数据：未加密。能打开这个浏览器的人都能读到记录。"}
 (function scrub(){let moved=false;const a=lsGet("qy_ai",null);if(a&&a.key){delete a.key;lsSet("qy_ai",a);moved=true}const p=prefs0();if(p.sync&&(p.sync.tok||p.sync.pass||p.sync.auto)){delete p.sync.tok;delete p.sync.pass;delete p.sync.auto;moved=true}if(p.pin||p.salt){delete p.pin;delete p.salt;moved=true}if(moved){savePrefs(p);setTimeout(()=>{$("#meMsg").textContent="安全升级：旧版保存在本机的明文令牌、密钥和 PIN 已清除。如需记住它们，请先启用本机加密。"},0)}})();
 function greet(){const n=prefs0().nick;$("#greet").textContent=n?`${n}，记下此刻，轻轻接住自己`:"记下此刻，轻轻接住自己"}
@@ -602,21 +717,21 @@ $("#nick").value=prefs0().nick||"";
 $("#profSave").onclick=()=>{const p=prefs0();p.nick=$("#nick").value.trim();savePrefs(p);$("#meMsg").textContent="昵称已保存。";greet()};
 $("#vOn").onclick=async()=>{const pass=$("#vpass").value;if(locked)return;if(pass.length<8){$("#meMsg").textContent="口令至少 8 位。";return}
  $("#vOn").disabled=true;try{vaultSalt=crypto.getRandomValues(new Uint8Array(16));vaultKey=await deriveKey(pass,vaultSalt);if(memKey)secrets.ai={key:memKey};
-  await vaultWrite(JSON.stringify({entries,thoughts,practice,tomb,secrets}));["qy_entries","qy_thoughts","qy_practice","qy_tomb"].forEach(k=>localStorage.removeItem(k));
+  const snap=JSON.stringify({entries,thoughts,practice,tomb,secrets});chain=chain.then(()=>vaultWrite(snap)).then(()=>Store.delMany(PLAIN_KEYS));await chain;
   $("#vpass").value="";$("#meMsg").textContent="已启用本机加密。以后每次打开需要输入这个口令，请牢记。"}catch(e){vaultKey=null;$("#meMsg").textContent="启用失败："+e.message}$("#vOn").disabled=false;vState()};
 let armOff=false;$("#vOff").onclick=()=>{if(!vaultKey){$("#meMsg").textContent="当前没有启用加密。";return}
  if(!armOff){armOff=true;$("#vOff").textContent="再点一次确认关闭";setTimeout(()=>{armOff=false;$("#vOff").textContent="关闭加密"},3000);return}
- armOff=false;$("#vOff").textContent="关闭加密";const snap=secrets;vaultKey=null;secrets={};save();localStorage.removeItem("qy_vault");secrets={};$("#meMsg").textContent="已关闭加密，记录改为明文保存。令牌和密钥不再写入磁盘。";vState()};
+ armOff=false;$("#vOff").textContent="关闭加密";vaultKey=null;secrets={};save();chain=chain.then(()=>Store.del("qy_vault")).then(()=>{vaultRec=null}).catch(e=>console.error(e));$("#meMsg").textContent="已关闭加密，记录改为明文保存。令牌和密钥不再写入磁盘。";vState()};
 let fails=0,until=0;
 async function tryUnlock(){const m=$("#lockMsg");if(Date.now()<until){m.textContent="尝试次数过多，请 "+Math.ceil((until-Date.now())/1000)+" 秒后再试";return}
  const pass=$("#lockIn").value;if(!pass)return;
- try{const v=lsGet("qy_vault",null),salt=unb64(v.salt),key=await deriveKey(pass,salt);
+ try{const v=vaultRec,salt=unb64(v.salt),key=await deriveKey(pass,salt);
   const d=JSON.parse(dec.decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(v.iv)},key,unb64(v.ct))));
   vaultKey=key;vaultSalt=salt;entries=norm(d.entries||[]);thoughts=d.thoughts||[];practice=d.practice||[];tomb=d.tomb||{};secrets=d.secrets||{};locked=false;fails=0;
   $("#lock").classList.add("hide");$("#lockIn").value="";m.textContent="";afterUnlock()}
  catch(e){fails++;m.textContent="口令不对";$("#lockIn").value="";if(fails>=5)until=Date.now()+Math.min(300000,Math.pow(2,fails-5)*5000)}}
 $("#lockGo").onclick=tryUnlock;$("#lockIn").onkeydown=e=>{if(e.key==="Enter")tryUnlock()};
-let armForget=false;$("#lockForget").onclick=()=>{if(!armForget){armForget=true;$("#lockMsg").textContent="再点一次将清空本机全部数据（云端备份不受影响）";return}try{localStorage.clear()}catch(e){}location.reload()};
+let armForget=false;$("#lockForget").onclick=()=>{if(!armForget){armForget=true;$("#lockMsg").textContent="再点一次将清空本机全部数据（云端备份不受影响）";return}try{localStorage.clear()}catch(e){}Store.clear().catch(()=>{}).then(()=>location.reload())};
 function afterUnlock(){initSyncUI();if(typeof sbRestore==="function")sbRestore();initAIUI();vState();render();const s=secrets.sync;if(s&&s.auto&&s.tok&&s.pass)setTimeout(()=>syncNow(true),1200)}
 /* --- PWA --- */
 let deferred=null;
@@ -712,7 +827,7 @@ async function sbAuth(path,body){const r=await fetch(SB+"/auth/v1/"+path,{method
 function setSess(j){sess={at:j.access_token,rt:j.refresh_token,exp:Date.now()+(j.expires_in||3600)*1000-60000,email:(j.user&&j.user.email)||(sess&&sess.email)||"",uid:(j.user&&j.user.id)||(sess&&sess.uid)||""}}
 async function sbToken(){if(!sess)throw new Error("请先登录");if(Date.now()>sess.exp){const j=await sbAuth("token?grant_type=refresh_token",{refresh_token:sess.rt});setSess(j);sbPersist()}return sess.at}
 function sbPersist(){if(!vaultKey)return;if(sess&&$("#sbKeep").checked){secrets.sb={rt:sess.rt,email:sess.email,uid:sess.uid,cp:$("#sbPass").value}}else delete secrets.sb;save()}
-function sbUI(){const on=!!sess;$("#sbOut").classList.toggle("hide",on);$("#sbIn2").classList.toggle("hide",!on);if(on)$("#sbWho").textContent="已登录："+sess.email}
+function sbUI(){const on=!!sess;$("#sbOut").classList.toggle("hide",on);$("#sbIn2").classList.toggle("hide",!on);$("#sbRecArea").classList.toggle("hide",!on);if(on)$("#sbWho").textContent="已登录："+sess.email}
 const sbMsg=t=>{$("#sbMsg").textContent=t};
 async function sbSign(kind){if(!needAgree("sb",sbMsg))return;const email=$("#sbEmail").value.trim(),pw=$("#sbPw").value;if(!/^\S+@\S+\.\S+$/.test(email)){sbMsg("邮箱格式不对");return}if(pw.length<8){sbMsg("账号密码至少 8 位");return}
  sbMsg(kind==="up"?"注册中…":"登录中…");
@@ -722,17 +837,55 @@ async function sbSign(kind){if(!needAgree("sb",sbMsg))return;const email=$("#sbE
  catch(e){sbMsg((kind==="up"?"注册失败：":"登录失败：")+e.message)}}
 $("#sbIn").onclick=()=>sbSign("in");$("#sbUp").onclick=()=>sbSign("up");
 let sbBusy=false;
+/* 云端格式 v2：随机数据密钥 DK 加密数据；DK 分别用“云端加密口令”和“恢复码”各包装一份。
+   忘记口令时可用恢复码解开 DK 再换新口令。v1（旧格式，直接用口令加密）在下次同步时自动升级。 */
+let cloudKeys=null;
+const RC_ALPHA="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function newRecoveryCode(){const b=crypto.getRandomValues(new Uint8Array(32));return Array.from(b,x=>RC_ALPHA[x%32]).join("").match(/.{4}/g).join("-")}
+const normCode=c=>String(c||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+async function wrapDK(raw,secret){const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),k=await aesKey(secret,salt);return{salt:b64(salt),iv:b64(iv),ct:b64(new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},k,raw)))}}
+async function unwrapDK(w,secret){const k=await aesKey(secret,unb64(w.salt));return new Uint8Array(await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(w.iv)},k,unb64(w.ct)))}
+const dkKey=raw=>crypto.subtle.importKey("raw",raw,"AES-GCM",false,["encrypt","decrypt"]);
+async function sealV2(obj,ck){const iv=crypto.getRandomValues(new Uint8Array(12)),k=await dkKey(ck.raw);return JSON.stringify({v:2,iv:b64(iv),ct:b64(new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},k,enc.encode(JSON.stringify(obj))))),kp:ck.kp,kr:ck.kr})}
+async function openV2(j,raw){const k=await dkKey(raw);return JSON.parse(dec.decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(j.iv)},k,unb64(j.ct))))}
+async function freshKeys(pass){const raw=crypto.getRandomValues(new Uint8Array(32)),code=newRecoveryCode();return{ck:{raw,kp:await wrapDK(raw,pass),kr:await wrapDK(raw,normCode(code))},code}}
+function showCode(code){$("#sbCode").textContent=code;$("#sbCodeBox").classList.remove("hide");$("#sbCodeBox").scrollIntoView({block:"center"})}
+$("#sbCodeCopy").onclick=async()=>{try{await navigator.clipboard.writeText($("#sbCode").textContent);$("#sbCodeCopy").textContent="已复制"}catch(e){$("#sbCodeCopy").textContent="请手动选中复制"}};
+$("#sbCodeOk").onclick=()=>{$("#sbCode").textContent="";$("#sbCodeBox").classList.add("hide")};
+async function sbFetchRow(H){const g=await fetch(SB+"/rest/v1/vaults?select=blob",{headers:H});if(!g.ok)throw new Error("读取云端失败 "+g.status);const rows=await g.json();return rows.length?rows[0].blob:null}
+async function sbPut(H,blob){const u=await fetch(SB+"/rest/v1/vaults?on_conflict=user_id",{method:"POST",headers:{...H,Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify([{user_id:sess.uid,blob,updated_at:new Date().toISOString()}])});if(!u.ok)throw new Error("上传失败 "+u.status)}
 async function sbSync(silent){if(sbBusy)return;if(silent?!agreed("sb"):!needAgree("sb",sbMsg))return;const cp=$("#sbPass").value;if(cp.length<6){if(!silent)sbMsg("请先填写云端加密口令（至少 6 位）。");return}
  sbBusy=true;sbMsg("同步中…");
- try{const tok=await sbToken(),H=sbH(tok);
-  const g=await fetch(SB+"/rest/v1/vaults?select=blob",{headers:H});if(!g.ok)throw new Error("读取云端失败 "+g.status);const rows=await g.json();let pulled=0;
-  if(rows.length){let r;try{r=await decrypt(rows[0].blob,cp)}catch(e){throw new Error("云端加密口令不对，已停止，没有改动云端数据")}const before=entries.length+thoughts.length+practice.length;applyMerge(r);pulled=entries.length+thoughts.length+practice.length-before}
-  const body=await encrypt(snapshot(),cp);
-  const u=await fetch(SB+"/rest/v1/vaults?on_conflict=user_id",{method:"POST",headers:{...H,Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify([{user_id:sess.uid,blob:body,updated_at:new Date().toISOString()}])});
-  if(!u.ok)throw new Error("上传失败 "+u.status);
-  const p=prefs0();p.sb={last:Date.now()};savePrefs(p);sbPersist();sbMsg(`同步完成：从云端合并了 ${Math.max(pulled,0)} 条新数据，已加密上传。时间 ${fmt(Date.now())}`);render()}
+ try{const tok=await sbToken(),H=sbH(tok),blob=await sbFetchRow(H);let pulled=0,code=null;
+  if(blob){const j=JSON.parse(blob);let r;
+   if(j.v===2){let raw;try{raw=await unwrapDK(j.kp,cp)}catch(e){throw new Error("云端加密口令不对，已停止，没有改动云端数据。忘记口令时可以用恢复码重设")}cloudKeys={raw,kp:j.kp,kr:j.kr};r=await openV2(j,raw)}
+   else{try{r=await decrypt(blob,cp)}catch(e){throw new Error("云端加密口令不对，已停止，没有改动云端数据")}cloudKeys=null}
+   const before=entries.length+thoughts.length+practice.length;applyMerge(r);pulled=entries.length+thoughts.length+practice.length-before}
+  if(!cloudKeys){const f=await freshKeys(cp);cloudKeys=f.ck;code=f.code}
+  await sbPut(H,await sealV2(snapshot(),cloudKeys));
+  const p=prefs0();p.sb={last:Date.now()};savePrefs(p);sbPersist();sbMsg(`同步完成：从云端合并了 ${Math.max(pulled,0)} 条新数据，已加密上传。时间 ${fmt(Date.now())}`);render();if(code)showCode(code)}
  catch(e){sbMsg("同步失败："+e.message)}sbBusy=false}
 $("#sbNow").onclick=()=>sbSync(false);
+$("#sbRecGo").onclick=async()=>{const code=normCode($("#sbRecIn").value),np=$("#sbNewPass").value;if(code.length<32){sbMsg("恢复码不完整，请检查。");return}if(np.length<6){sbMsg("新的云端加密口令至少 6 位。");return}
+ try{const tok=await sbToken(),H=sbH(tok),blob=await sbFetchRow(H);if(!blob){sbMsg("云端还没有数据，不需要重设。");return}const j=JSON.parse(blob);if(j.v!==2){sbMsg("云端数据是旧格式，没有恢复码，无法用恢复码重设。");return}
+  let raw;try{raw=await unwrapDK(j.kr,code)}catch(e){sbMsg("恢复码不对，云端数据没有改动。");return}
+  j.kp=await wrapDK(raw,np);await sbPut(H,JSON.stringify(j));cloudKeys={raw,kp:j.kp,kr:j.kr};$("#sbPass").value=np;$("#sbRecIn").value="";$("#sbNewPass").value="";sbPersist();
+  sbMsg("已用恢复码重设云端加密口令。恢复码依然有效，请继续妥善保存。现在可以点「立即同步」。")}
+ catch(e){sbMsg("重设失败："+e.message)}};
+$("#sbRecNew").onclick=async()=>{const cp=$("#sbPass").value;if(cp.length<6){sbMsg("请先填写当前的云端加密口令。");return}
+ try{const tok=await sbToken(),H=sbH(tok),blob=await sbFetchRow(H);if(!blob){sbMsg("请先同步一次，再生成恢复码。");return}const j=JSON.parse(blob);if(j.v!==2){sbMsg("请先点「立即同步」，云端数据会升级到支持恢复码的新格式。");return}
+  let raw;try{raw=await unwrapDK(j.kp,cp)}catch(e){sbMsg("云端加密口令不对。");return}
+  const code=newRecoveryCode();j.kr=await wrapDK(raw,normCode(code));await sbPut(H,JSON.stringify(j));cloudKeys={raw,kp:j.kp,kr:j.kr};showCode(code);sbMsg("已生成新的恢复码，旧的恢复码从现在起失效。")}
+ catch(e){sbMsg("生成失败："+e.message)}};
+/* 找回账号密码：发送重置邮件；从邮件链接回来时设置新密码 */
+$("#sbForgot").onclick=async()=>{const email=$("#sbEmail").value.trim();if(!/^\S+@\S+\.\S+$/.test(email)){sbMsg("请先在上面填写注册时用的邮箱。");return}
+ try{const r=await fetch(SB+"/auth/v1/recover?redirect_to="+encodeURIComponent(location.origin+location.pathname),{method:"POST",headers:sbH(),body:JSON.stringify({email})});
+  if(r.status===429){sbMsg("操作太频繁，请稍后再试。");return}
+  sbMsg("如果这个邮箱注册过，几分钟内会收到一封重置密码的邮件。没收到的话请检查垃圾箱。")}catch(e){sbMsg("发送失败："+e.message)}};
+(function recoveryReturn(){const h=new URLSearchParams(location.hash.slice(1));if(h.get("type")!=="recovery"||!h.get("access_token"))return;const at=h.get("access_token");history.replaceState(null,"",location.pathname+location.search);
+ const box=$("#pwReset");box.classList.remove("hide");$("#pwGo").onclick=async()=>{const pw=$("#pwNew").value;if(pw.length<8){$("#pwMsg").textContent="新密码至少 8 位。";return}
+  try{const r=await fetch(SB+"/auth/v1/user",{method:"PUT",headers:sbH(at),body:JSON.stringify({password:pw})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(sbErr(j,r.status));
+   $("#pwMsg").textContent="密码已更新，请回到「设置 → 云端账号与同步」用新密码登录。";$("#pwNew").value="";setTimeout(()=>box.classList.add("hide"),4000)}catch(e){$("#pwMsg").textContent="更新失败："+e.message+"。链接可能已过期，请重新申请。"}}})();
 $("#sbLogout").onclick=async()=>{try{if(sess)await fetch(SB+"/auth/v1/logout",{method:"POST",headers:sbH(sess.at)})}catch(e){}sess=null;if(vaultKey){delete secrets.sb;save()}sbUI();sbMsg("已退出登录，本机不再保留登录状态。")};
 let sbArm=false;$("#sbDel").onclick=async()=>{if(!sbArm){sbArm=true;$("#sbDel").textContent="再点一次：只删数据，账号保留";setTimeout(()=>{sbArm=false;$("#sbDel").textContent="仅删除云端数据（保留账号）"},3000);return}
  sbArm=false;$("#sbDel").textContent="仅删除云端数据（保留账号）";try{const tok=await sbToken(),r=await fetch(SB+"/rest/v1/vaults?user_id=eq."+sess.uid,{method:"DELETE",headers:sbH(tok)});if(!r.ok)throw new Error("状态 "+r.status);sbMsg("云端加密数据已删除，账号仍然保留，本机数据也不受影响。如需连账号一起删除，请使用下方「我的数据 → 删除我的全部数据」。")}catch(e){sbMsg("删除失败："+e.message)}};
@@ -780,14 +933,26 @@ $("#delGo").onclick=async()=>{const out=[],msg=$("#delMsg");$("#delGo").disabled
  try{const sub=await pushSub();if(sub){await pushCall({action:"unsubscribe",endpoint:sub.endpoint}).catch(()=>{});await sub.unsubscribe();out.push("推送订阅：已删除")}}catch(e){out.push("推送订阅：删除失败")}
  const g=(prefs0().sync||{}).gid,gt=$("#syTok").value.trim();if(g&&gt){try{const r=await fetch(GH+"/gists/"+g,{method:"DELETE",headers:ghH(gt)});out.push(r.ok||r.status===404?"Gist 备份：已删除":"Gist 备份：删除失败（"+r.status+"）")}catch(e){out.push("Gist 备份：删除失败")}}
  Snd.stop(true);Guide.stop(true);
- try{localStorage.clear()}catch(e){}try{await caches.delete("qingyi-prefs")}catch(e){}
+ try{localStorage.clear()}catch(e){}try{await chain;await Store.clear()}catch(e){}try{await caches.delete("qingyi-prefs")}catch(e){}
  entries=[];thoughts=[];practice=[];tomb={};secrets={};vaultKey=null;memKey="";
  out.push("本机数据：已全部清除");msg.textContent=out.join("；")+"。页面将在 5 秒后重新开始。";setTimeout(()=>location.reload(),5000)};
 
+/* --- 首次引导：同意之后，第一次来的人先体验 1 分钟，或直接记录 --- */
+function renderOnboard(){const p=prefs0(),show=consented()&&!p.onboarded&&!entries.some(e=>!e.demo)&&!practice.length;$("#onboard").classList.toggle("hide",!show)}
+function doneOnboard(){const p=prefs0();p.onboarded=Date.now();savePrefs(p);renderOnboard()}
+$("#obBreath").onclick=()=>{doneOnboard();goTab("care");Guide.start(MEDS.find(x=>x.id==="breath1"))};
+$("#obLog").onclick=()=>{doneOnboard();$("#moods").scrollIntoView({behavior:"smooth",block:"center"})};
+$("#obSkip").onclick=doneOnboard;
+
 const _render=render;
-render=function(){_render();renderCBT();renderMems();renderBadges();calUI();remindTick();greet()};
+render=function(){_render();renderCBT();renderMems();renderBadges();calUI();remindTick();greet();renderOnboard()};
 function showLock(){if(locked){$("#lock").classList.remove("hide");$("#lockHi").textContent=(prefs0().nick?prefs0().nick+"，":"")+"输入口令解锁";$("#lockIn").focus()}}
-vState();render();if(consented())showLock();else{$("#consent").classList.remove("hide");$("#cAgree").focus()}
+// 启动：打开数据库（必要时从旧版迁移）→ 读入数据 → 渲染 → 同意 / 解锁
+(async()=>{await Store.init();let d={};try{d=await Store.loadAll()}catch(e){console.error(e)}
+ vaultRec=d.qy_vault||null;locked=!!vaultRec;
+ if(!locked){entries=norm(d.qy_entries||[]);thoughts=d.qy_thoughts||[];practice=d.qy_practice||[];tomb=d.qy_tomb||{}}
+ ready=true;vState();render();if(consented())showLock();else{$("#consent").classList.remove("hide");$("#cAgree").focus()}
+ window.qyReady=true})();
 </script>
 </body>
 </html>

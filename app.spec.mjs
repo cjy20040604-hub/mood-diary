@@ -15,6 +15,7 @@ async function boot(page, { consent = true } = {}) {
   await page.route(/supabase\.co|api\.github\.com|mock-ai\.test/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: "{}" }));
   if (consent) await page.addInitScript((p) => { if (!localStorage.getItem("qy_prefs")) localStorage.setItem("qy_prefs", p); }, CONSENTED);
   await page.goto("/index.html");
+  await page.waitForFunction(() => window.qyReady === true);
   return errors;
 }
 // 直接写入记录（时间都在最近 7 天内），用于需要精确数据的场景
@@ -40,6 +41,7 @@ test.describe("首次使用与隐私", () => {
     await page.click("#cOk");
     await expect(dlg).toBeHidden();
     await page.reload();
+    await page.waitForFunction(() => window.qyReady === true);
     await expect(dlg).toBeHidden();
     expect(errors).toEqual([]);
   });
@@ -165,7 +167,7 @@ test.describe("安全：危机识别", () => {
 
 test.describe("AI 复盘", () => {
   async function setupAI(page) {
-    await page.evaluate(() => { localStorage.setItem("qy_ai", JSON.stringify({ base: "https://mock-ai.test/v1", model: "m", ok: true })); memKey = "sk-test"; });
+    await page.evaluate(() => { localStorage.setItem("qy_ai", JSON.stringify({ base: "https://mock-ai.test/v1", model: "m", ok: true, okv: 2 })); memKey = "sk-test"; });
   }
 
   test("本周有危机内容时，AI 复盘暂停且不发送任何文字", async ({ page }) => {
@@ -251,7 +253,10 @@ test.describe("数据安全", () => {
     await page.click("#vOn");
     await expect(page.locator("#vState")).toContainText("已加密");
     expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain("只属于我的秘密");
+    expect(await page.evaluate(() => Store.dump())).not.toContain("只属于我的秘密");
+    expect(await page.evaluate(() => Store.keys())).not.toContain("qy_entries");
     await page.reload();
+    await page.waitForFunction(() => window.qyReady === true);
     await expect(page.locator("#lock")).toBeVisible();
     await page.fill("#lockIn", "wrong passphrase");
     await page.click("#lockGo");
@@ -281,6 +286,7 @@ test.describe("数据安全", () => {
     await expect(page.locator("#delMsg")).toContainText("云端账号和云端数据：已删除");
     expect(calls.find((c) => c.action === "delete_account").token).toBe("user-access-token");
     expect(await page.evaluate(() => localStorage.length)).toBe(0);
+    expect(await page.evaluate(() => Store.keys())).toEqual([]);
   });
 
   test("“仅删除云端数据”只删数据、保留账号，并说明清楚", async ({ page }) => {
@@ -321,6 +327,7 @@ test.describe("疗愈", () => {
     await expect(page.locator("#now")).toBeHidden();
     await page.uncheck("#voice");
     await page.locator("#meds .rec button").first().click();
+    await page.getByRole("button", { name: "跳过评分，直接开始" }).click();
     await expect(page.locator("#now")).toContainText("第 1/");
     await page.evaluate(() => { while (Guide.g) Guide.next(); });
     await expect(page.locator("#now")).toContainText("完成了");
@@ -411,4 +418,295 @@ test.describe("情绪与原因的对应", () => {
     await expect(page.locator("#goodbars .bar").first()).toBeVisible();
     await expect(page.locator("#trigbars .bar").first()).toBeVisible();
   });
+});
+
+test.describe("第二周：练习效果、首次引导、音频与计时", () => {
+  test("练习前后评分，并显示变化 @mobile", async ({ page }) => {
+    const errors = await boot(page);
+    await tab(page, "care");
+    await page.uncheck("#voice");
+    await page.locator("#meds .rec", { hasText: "1 分钟呼吸" }).getByRole("button", { name: "开始" }).click();
+    await expect(page.locator("#now")).toContainText("开始前，此刻感觉怎么样");
+    await page.locator("#now .rate button").nth(1).click(); // 低落 = 2
+    await expect(page.locator("#now")).toContainText("第 1/");
+    await page.evaluate(() => { while (Guide.g) Guide.next(); });
+    await expect(page.locator("#now")).toContainText("现在感觉怎么样");
+    await page.locator("#now .rate button").nth(3).click(); // 不错 = 4
+    await expect(page.locator("#now")).toContainText("比开始前好了 2 档");
+    const p = await page.evaluate(() => practice[0]);
+    expect([p.gid, p.pre, p.post]).toEqual(["breath1", 2, 4]);
+    expect(errors).toEqual([]);
+  });
+
+  test("某个练习对你有效时，推荐会优先选它并说明依据", async ({ page }) => {
+    await boot(page);
+    await page.evaluate(() => {
+      practice = [
+        { id: "a", t: Date.now() - 3e5, g: "颈肩放松", gid: "neck", pre: 2, post: 4 },
+        { id: "b", t: Date.now() - 2e5, g: "颈肩放松", gid: "neck", pre: 2, post: 3 },
+        { id: "c", t: Date.now() - 1e5, g: "身体扫描", gid: "scan", pre: 2, post: 2 },
+      ];
+      entries = [{ id: "e", t: Date.now(), mood: 2, emos: ["焦虑"], trigs: [], pos: [], note: "" }];
+      save(); render();
+    });
+    await tab(page, "care");
+    const ex = page.locator("#recs .rec", { hasText: "运动" });
+    await expect(ex).toContainText("颈肩放松");
+    await expect(ex).toContainText("你做过 2 次，平均让心情好了 1.5 档");
+    await expect(page.locator("#exs .rec", { hasText: "颈肩放松" })).toContainText("你的效果 +1.5 档（2 次）");
+    await tab(page, "insight");
+    await expect(page.locator("#effbars")).toContainText("颈肩放松");
+  });
+
+  test("首次引导：同意后出现，可直接开始 1 分钟呼吸，之后不再出现", async ({ page }) => {
+    await boot(page, { consent: false });
+    await page.check("#cAgree"); await page.check("#cAge"); await page.click("#cOk");
+    await expect(page.locator("#onboard")).toBeVisible();
+    await page.click("#obBreath");
+    await expect(page.locator("#now")).toContainText("1 分钟呼吸");
+    await page.reload();
+    await page.waitForFunction(() => window.qyReady === true);
+    await expect(page.locator("#onboard")).toBeHidden();
+  });
+
+  test("记录不足 3 条时提示还差几条", async ({ page }) => {
+    await boot(page);
+    await page.locator(".moods button").nth(2).click();
+    await page.click("#save");
+    await expect(page.locator("#after")).toContainText("再记 2 条");
+  });
+
+  test("白噪音是首尾无缝的循环音频，定时到点会停止", async ({ page }) => {
+    await boot(page);
+    const r = await page.evaluate(async () => {
+      const x = new Float32Array(10 * 33).map((_, i) => i); // 用递增序列检验拼接位置
+      const o = loopify(x, 10, 30, 3);
+      const url = await Snd.render("ocean");
+      const blob = await fetch(url).then((r) => r.blob());
+      return { len: o.length, first: o[0], tailNext: x[300], last: o[299], type: blob.type, kb: Math.round(blob.size / 1024) };
+    });
+    expect(r.len).toBe(300);
+    expect(r.first).toBeCloseTo(r.tailNext, 5); // 循环回到开头时，正好接在结尾的下一个采样
+    expect(r.last).toBe(299);
+    expect(r.type).toBe("audio/wav");
+    expect(r.kb).toBeGreaterThan(1000);
+    await tab(page, "care");
+    await page.locator("#scenes .chip").first().click();
+    await expect(page.locator("#now")).toContainText("正在播放");
+    await page.evaluate(() => { Snd.endAt = Date.now() - 1; Snd.tick(); });
+    await expect(page.locator("#now")).toBeHidden();
+    expect(await page.evaluate(() => Snd.cur)).toBe(null);
+  });
+
+  test("引导按时间戳计时：页面被挂起后能追上正确的步骤", async ({ page }) => {
+    await boot(page);
+    await page.evaluate(() => { $("#voice").checked = false; Guide.start(MEDS.find((x) => x.id === "breath1")); Guide.begin(null); });
+    // 模拟后台挂起 15 秒：把开始时间往前拨
+    const step = await page.evaluate(() => { const shift = 15000; Guide.stepEnd -= shift; Guide.tick(); return Guide.i; });
+    expect(step).toBeGreaterThanOrEqual(2);
+    await page.evaluate(() => Guide.stop());
+  });
+});
+
+test.describe("存储：IndexedDB 与迁移", () => {
+  test("旧版 localStorage 数据会迁移到 IndexedDB，核对后才删除旧数据", async ({ page }) => {
+    await page.route(/fonts\.|supabase\.co/, (r) => r.fulfill({ status: 200, body: "" }));
+    await page.addInitScript(() => {
+      if (sessionStorage.getItem("seeded")) return;
+      sessionStorage.setItem("seeded", "1");
+      localStorage.setItem("qy_prefs", JSON.stringify({ consent: { v: 1, t: 1 } }));
+      localStorage.setItem("qy_entries", JSON.stringify([{ id: "old1", t: Date.now() - 5e6, mood: 2, emos: ["焦虑"], trigs: ["学业/考试"], note: "旧版本写下的记录" }]));
+      localStorage.setItem("qy_practice", JSON.stringify([{ id: "p1", t: Date.now() - 4e6, g: "身体扫描" }]));
+      localStorage.setItem("qy_tomb", JSON.stringify({ gone: 1 }));
+    });
+    await page.goto("/index.html");
+    await page.waitForFunction(() => window.qyReady === true);
+    await expect(page.locator(".entry")).toContainText("旧版本写下的记录");
+    const r = await page.evaluate(async () => ({ mode: Store.mode, schema: await Store.get("qy_schema"), idb: (await Store.get("qy_entries")).length, ls: ["qy_entries", "qy_practice", "qy_tomb"].filter((k) => localStorage.getItem(k) != null) }));
+    expect(r).toEqual({ mode: "idb", schema: 2, idb: 1, ls: [] });
+    // 再次打开不会重复迁移，数据仍在
+    await page.reload();
+    await page.waitForFunction(() => window.qyReady === true);
+    await expect(page.locator(".entry")).toContainText("旧版本写下的记录");
+  });
+
+  test("旧版的加密保险箱也会迁移，迁移后用原口令可以解锁", async ({ page }) => {
+    await boot(page);
+    await seed(page, [{ mood: 3, note: "加密的旧记录" }]);
+    await tab(page, "me");
+    await page.fill("#vpass", "old vault passphrase");
+    await page.click("#vOn");
+    await expect(page.locator("#vState")).toContainText("已加密");
+    // 把保险箱挪回 localStorage，模拟旧版本
+    await page.evaluate(async () => { localStorage.setItem("qy_vault", JSON.stringify(await Store.get("qy_vault"))); await Store.clear(); });
+    await page.reload();
+    await page.waitForFunction(() => window.qyReady === true);
+    expect(await page.evaluate(() => localStorage.getItem("qy_vault"))).toBe(null);
+    await expect(page.locator("#lock")).toBeVisible();
+    await page.fill("#lockIn", "old vault passphrase");
+    await page.click("#lockGo");
+    await expect(page.locator(".entry")).toContainText("加密的旧记录");
+  });
+
+  test("浏览器不支持 IndexedDB 时自动退回 localStorage，功能照常", async ({ page }) => {
+    await page.addInitScript(() => { try { Object.defineProperty(window, "indexedDB", { value: undefined, configurable: true }); } catch (e) {} });
+    await boot(page);
+    expect(await page.evaluate(() => Store.mode)).toBe("ls");
+    await page.locator(".moods button").nth(3).click();
+    await page.fill("#note", "没有数据库也能记");
+    await page.click("#save");
+    await page.reload();
+    await page.waitForFunction(() => window.qyReady === true);
+    await expect(page.locator(".entry")).toContainText("没有数据库也能记");
+  });
+
+  test("数据读完之前不会写入，不会用空数据覆盖已有记录", async ({ page }) => {
+    await boot(page);
+    await seed(page, [{ mood: 4, note: "不能被覆盖" }]);
+    await page.evaluate(() => chain);
+    const r = await page.evaluate(async () => { ready = false; entries = []; save(); await chain; ready = true; return (await Store.get("qy_entries")).length; });
+    expect(r).toBe(1);
+  });
+});
+
+test.describe("服务端 AI 复盘", () => {
+  test("默认经服务端生成复盘；没同意时不发送", async ({ page }) => {
+    await boot(page);
+    let body = null;
+    await page.route(/functions\/v1\/ai/, async (r) => { body = r.request().postDataJSON(); await r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ text: "这周辛苦了，先把睡眠排在前面。" }) }); });
+    await seed(page, [{ mood: 2, note: "考试周" }, { mood: 3, note: "还行" }, { mood: 4, note: "跑步了" }]);
+    await tab(page, "insight");
+    await page.click("#rpAI");
+    await expect(page.locator("#aiHint")).toContainText("勾选数据发送同意");
+    expect(body).toBe(null);
+    await tab(page, "me");
+    await page.check("#aiOk");
+    await tab(page, "insight");
+    await page.click("#rpAI");
+    await expect(page.locator("#aiOut")).toContainText("先把睡眠排在前面");
+    expect(body.stats.length).toBeGreaterThan(0);
+    expect(body.notes.join(" ")).toContain("考试周");
+  });
+
+  test("服务还没开通时给出明确提示，本地周报不受影响", async ({ page }) => {
+    await boot(page);
+    await page.route(/functions\/v1\/ai/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: '{"error":"not configured"}' }));
+    await page.evaluate(() => localStorage.setItem("qy_ai", JSON.stringify({ ok: true, okv: 2 })));
+    await seed(page, [{ mood: 2 }, { mood: 3 }, { mood: 4 }]);
+    await tab(page, "insight");
+    await page.click("#rpAI");
+    await expect(page.locator("#aiOut")).toContainText("还没有开通");
+    await expect(page.locator("#rpBody")).toContainText("小建议");
+  });
+});
+
+test.describe("云端恢复码与找回密码", () => {
+  // 用内存模拟云端 vaults 表
+  async function mockCloud(page) {
+    const cloud = { blob: null };
+    await page.route(/rest\/v1\/vaults/, async (r) => {
+      const m = r.request().method();
+      if (m === "GET") return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(cloud.blob ? [{ blob: cloud.blob }] : []) });
+      if (m === "POST") { cloud.blob = r.request().postDataJSON()[0].blob; return r.fulfill({ status: 201, body: "" }); }
+      return r.fulfill({ status: 204, body: "" });
+    });
+    await page.evaluate(() => { sess = { at: "t", rt: "r", exp: Date.now() + 1e6, email: "a@b.c", uid: "u1" }; sbUI(); const p = JSON.parse(localStorage.getItem("qy_prefs")); p.agree = { sb: 1 }; localStorage.setItem("qy_prefs", JSON.stringify(p)); $("#sbAgree").checked = true; });
+    return cloud;
+  }
+
+  test("首次同步生成恢复码；忘记口令后可用恢复码重设，数据完好", async ({ page }) => {
+    await boot(page);
+    const cloud = await mockCloud(page);
+    await seed(page, [{ mood: 3, note: "云端里的记录" }]);
+    await tab(page, "me");
+    await page.fill("#sbPass", "first-pass");
+    await page.click("#sbNow");
+    await expect(page.locator("#sbCodeBox")).toBeVisible();
+    const code = await page.locator("#sbCode").innerText();
+    expect(code).toMatch(/^([A-Z0-9]{4}-){7}[A-Z0-9]{4}$/);
+    const j = JSON.parse(cloud.blob);
+    expect(j.v).toBe(2);
+    expect(cloud.blob).not.toContain("云端里的记录");
+    await page.click("#sbCodeOk");
+    // 换一台“设备”：本机清空，口令忘了
+    await page.evaluate(() => { entries = []; cloudKeys = null; save(); render(); });
+    await page.fill("#sbPass", "wrong-pass");
+    await page.click("#sbNow");
+    await expect(page.locator("#sbMsg")).toContainText("恢复码");
+    await page.locator("#sbRecArea summary").click();
+    await page.fill("#sbRecIn", code.toLowerCase());
+    await page.fill("#sbNewPass", "brand-new-pass");
+    await page.click("#sbRecGo");
+    await expect(page.locator("#sbMsg")).toContainText("已用恢复码重设");
+    await page.click("#sbNow");
+    await expect(page.locator("#sbMsg")).toContainText("同步完成");
+    await expect(page.locator(".entry")).toContainText("云端里的记录");
+  });
+
+  test("重新生成恢复码后，旧的恢复码失效", async ({ page }) => {
+    await boot(page);
+    await mockCloud(page);
+    await tab(page, "me");
+    await page.fill("#sbPass", "pass-one");
+    await page.click("#sbNow");
+    await expect(page.locator("#sbCodeBox")).toBeVisible();
+    const oldCode = await page.locator("#sbCode").innerText();
+    await page.click("#sbCodeOk");
+    await page.click("#sbRecNew");
+    await expect(page.locator("#sbCodeBox")).toBeVisible();
+    const newCode = await page.locator("#sbCode").innerText();
+    expect(newCode).not.toBe(oldCode);
+    await page.locator("#sbRecArea summary").click();
+    await page.fill("#sbRecIn", oldCode);
+    await page.fill("#sbNewPass", "pass-two");
+    await page.click("#sbRecGo");
+    await expect(page.locator("#sbMsg")).toHaveText("恢复码不对，云端数据没有改动。");
+  });
+
+  test("旧格式的云端数据会在同步时自动升级并生成恢复码", async ({ page }) => {
+    await boot(page);
+    const cloud = await mockCloud(page);
+    cloud.blob = await page.evaluate(() => encrypt({ entries: [{ id: "v1e", t: Date.now() - 1e6, mood: 4, emos: [], trigs: [], note: "旧格式的记录" }], thoughts: [], practice: [], tomb: {} }, "legacy-pass"));
+    await tab(page, "me");
+    await page.fill("#sbPass", "legacy-pass");
+    await page.click("#sbNow");
+    await expect(page.locator("#sbMsg")).toContainText("同步完成");
+    await expect(page.locator("#sbCodeBox")).toBeVisible();
+    expect(JSON.parse(cloud.blob).v).toBe(2);
+    await expect(page.locator(".entry")).toContainText("旧格式的记录");
+  });
+
+  test("找回账号密码：发送重置邮件；从邮件链接回来可设置新密码", async ({ page }) => {
+    await boot(page);
+    let recover = null, update = null;
+    await page.route(/auth\/v1\/recover/, async (r) => { recover = r.request().postDataJSON(); await r.fulfill({ status: 200, contentType: "application/json", body: "{}" }); });
+    await page.route(/auth\/v1\/user/, async (r) => { update = { method: r.request().method(), auth: r.request().headers()["authorization"], body: r.request().postDataJSON() }; await r.fulfill({ status: 200, contentType: "application/json", body: "{}" }); });
+    await tab(page, "me");
+    await page.fill("#sbEmail", "me@example.com");
+    await page.click("#sbForgot");
+    await expect(page.locator("#sbMsg")).toContainText("会收到一封重置密码的邮件");
+    expect(recover.email).toBe("me@example.com");
+    await page.goto("/index.html?from=email#access_token=reset-token&type=recovery");
+    await page.waitForFunction(() => window.qyReady === true);
+    await expect(page.locator("#pwReset")).toBeVisible();
+    expect(await page.evaluate(() => location.hash)).toBe("");
+    await page.fill("#pwNew", "new-password-123");
+    await page.click("#pwGo");
+    await expect(page.locator("#pwMsg")).toContainText("密码已更新");
+    expect(update).toEqual({ method: "PUT", auth: "Bearer reset-token", body: { password: "new-password-123" } });
+  });
+});
+
+test("旧版的 AI 同意（只针对自己的接口）不会沿用到服务端转发", async ({ page }) => {
+  await boot(page);
+  let called = false;
+  await page.route(/functions\/v1\/ai/, (r) => { called = true; r.fulfill({ status: 200, contentType: "application/json", body: '{"text":"x"}' }); });
+  await page.evaluate(() => { localStorage.setItem("qy_ai", JSON.stringify({ ok: true })); initAIUI(); });
+  await seed(page, [{ mood: 2 }, { mood: 3 }, { mood: 4 }]);
+  await tab(page, "insight");
+  await page.click("#rpAI");
+  await expect(page.locator("#aiHint")).toContainText("勾选数据发送同意");
+  expect(called).toBe(false);
+  await tab(page, "me");
+  await expect(page.locator("#aiOk")).not.toBeChecked();
 });
