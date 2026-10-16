@@ -70,3 +70,62 @@ begin
 end $$;
 revoke all on function public.push_hit(text, int, int) from public, anon, authenticated;
 grant execute on function public.push_hit(text, int, int) to service_role;
+
+-- 5) 改进计划（用户自愿加入）：每天最多一行匿名汇总，不含任何日记内容
+create table if not exists public.metrics_daily (
+  install_id uuid not null,                 -- 本机随机生成，退出后重新生成
+  day date not null,                        -- 上报当天（用户本地日期）
+  records_7d int not null check (records_7d between 0 and 1000),
+  active_days_7d int not null check (active_days_7d between 0 and 7),
+  practices_7d int not null check (practices_7d between 0 and 500),
+  rated_7d int not null check (rated_7d between 0 and 500),
+  avg_delta_7d numeric(4,2) check (avg_delta_7d between -4 and 4),
+  first_day date check (first_day <= day),  -- 首次使用日期，用来计算留存
+  v text check (length(v) <= 20),
+  created_at timestamptz not null default now(),
+  primary key (install_id, day)
+);
+alter table public.metrics_daily enable row level security;
+revoke all on public.metrics_daily from anon, authenticated;
+drop policy if exists "insert metrics" on public.metrics_daily;
+-- 只能通过下面的函数写入：校验日期，同一天重复上报直接忽略；表本身不对前端开放读写
+create or replace function public.report_day(p_install uuid, p_day date, p_records int, p_active int, p_practices int, p_rated int, p_delta numeric, p_first date, p_v text)
+returns void language plpgsql security definer set search_path = public as $
+begin
+  if p_day not between current_date - 1 and current_date + 1 then raise exception 'invalid day'; end if;
+  insert into public.metrics_daily (install_id, day, records_7d, active_days_7d, practices_7d, rated_7d, avg_delta_7d, first_day, v)
+  values (p_install, p_day, p_records, p_active, p_practices, p_rated, p_delta, p_first, p_v)
+  on conflict (install_id, day) do nothing;
+end $;
+revoke all on function public.report_day(uuid, date, int, int, int, int, numeric, date, text) from public;
+grant execute on function public.report_day(uuid, date, int, int, int, int, numeric, date, text) to anon, authenticated;
+
+-- 6) 反馈：只能写入，不能读出
+create table if not exists public.feedback (
+  id bigserial primary key,
+  install_id uuid,
+  body text not null check (length(body) between 2 and 1000),
+  contact text check (length(contact) <= 100),
+  v text check (length(v) <= 20),
+  created_at timestamptz not null default now()
+);
+alter table public.feedback enable row level security;
+revoke all on public.feedback from anon, authenticated;
+grant insert on public.feedback to anon, authenticated;
+grant usage on sequence public.feedback_id_seq to anon, authenticated;
+drop policy if exists "insert feedback" on public.feedback;
+create policy "insert feedback" on public.feedback for insert to anon, authenticated with check (true);
+
+-- 退出改进计划：按安装 ID 删除已上报的数据（ID 只有本机知道）
+create or replace function public.forget_install(p_id uuid) returns void
+language sql security definer set search_path = public as $$
+  delete from public.metrics_daily where install_id = p_id;
+  delete from public.feedback where install_id = p_id;
+$$;
+revoke all on function public.forget_install(uuid) from public;
+grant execute on function public.forget_install(uuid) to anon, authenticated;
+
+-- 保存期限：最长 12 个月，每天自动清理
+select cron.schedule('qingyi-retention', '0 3 * * *', $$
+  delete from public.metrics_daily where created_at < now() - interval '365 days';
+  delete from public.feedback where created_at < now() - interval '365 days' $$);

@@ -94,7 +94,7 @@ test.describe("记录", () => {
     await page.fill("#search", "跑步");
     await expect(page.locator(".entry")).toHaveCount(1);
     await page.fill("#search", "");
-    const del = page.locator(".entry button").first();
+    const del = page.locator(".entry").first().locator("button").nth(1); // 第二个按钮是“删除”
     await del.click();
     await expect(del).toHaveText("确认删除");
     await expect(page.locator(".entry")).toHaveCount(2);
@@ -721,5 +721,263 @@ test.describe("AI 复盘只用你自己的接口", () => {
     expect(calls).toBe(0);
     await tab(page, "me");
     await expect(page.locator("#aiOk")).not.toBeChecked();
+  });
+});
+
+import AxeBuilder from "@axe-core/playwright";
+test.describe("无障碍", () => {
+  async function scan(page, label) {
+    const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+    return r.violations.map((v) => label + " · " + v.id + " · " + v.nodes.length + " 处 · " + v.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | "));
+  }
+  for (const scheme of ["light", "dark"]) {
+    test("四个页面与主要弹窗没有 WCAG AA 违规（" + scheme + "）", async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await boot(page);
+      await tab(page, "insight");
+      await page.click("#demo");
+      const out = [];
+      for (const t of ["log", "insight", "care", "me"]) { await tab(page, t); out.push(...(await scan(page, t))); }
+      await page.click("#helpBtn"); out.push(...(await scan(page, "求助弹窗"))); await page.keyboard.press("Escape");
+      await tab(page, "log");
+      await page.locator(".moods button").nth(1).click();
+      await page.locator("#emos .chip", { hasText: "焦虑" }).click();
+      out.push(...(await scan(page, "已选中状态")));
+      expect(out).toEqual([]);
+    });
+  }
+  test("首次同意弹窗没有 WCAG AA 违规", async ({ page }) => {
+    await boot(page, { consent: false });
+    expect(await scan(page, "同意弹窗")).toEqual([]);
+  });
+
+  test("标签页可用方向键切换；弹窗内 Tab 不会跑出去", async ({ page }) => {
+    await boot(page);
+    await page.locator("#tab-log").focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.locator("#tab-insight")).toBeFocused();
+    await expect(page.locator("#insight")).toBeVisible();
+    await page.keyboard.press("End");
+    await expect(page.locator("#me")).toBeVisible();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.locator("#log")).toBeVisible();
+    expect(await page.locator("nav button[tabindex='0']").count()).toBe(1);
+    await page.click("#helpBtn");
+    for (let i = 0; i < 12; i++) {
+      await page.keyboard.press("Tab");
+      expect(await page.evaluate(() => document.querySelector("#support").contains(document.activeElement))).toBe(true);
+    }
+  });
+});
+
+test.describe("编辑、合并与多标签页", () => {
+  test("编辑一条记录：覆盖原记录、保留原时间、标注已修改", async ({ page }) => {
+    const errors = await boot(page);
+    await page.locator(".moods button").nth(1).click();
+    await page.locator("#emos .chip", { hasText: "焦虑" }).click();
+    await page.fill("#note", "写错了的内容");
+    await page.click("#save");
+    const t0 = await page.evaluate(() => entries[0].t);
+    await page.evaluate((t) => { entries[0].t = t - 3e5; entries[0].u = t - 3e5; save(); render(); }, t0);
+    await page.locator(".entry").getByRole("button", { name: /^编辑/ }).click();
+    await expect(page.locator("#editBar")).toBeVisible();
+    await expect(page.locator("#save")).toHaveText("保存修改");
+    await expect(page.locator("#note")).toHaveValue("写错了的内容");
+    await expect(page.locator("#emos .chip", { hasText: "焦虑" })).toHaveAttribute("aria-pressed", "true");
+    await page.locator(".moods button").nth(3).click();
+    await page.locator("#emos .chip", { hasText: "焦虑" }).click();
+    await page.locator("#emos .chip", { hasText: "平静" }).click();
+    await page.fill("#note", "改好了的内容");
+    await page.click("#save");
+    const e = await page.evaluate(() => ({ n: entries.length, ...entries[0] }));
+    expect(e.n).toBe(1);
+    expect(e.t).toBe(t0 - 3e5);
+    expect(e.u).toBeGreaterThan(e.t);
+    expect([e.mood, e.emos, e.note]).toEqual([4, ["平静"], "改好了的内容"]);
+    await expect(page.locator("#after h2")).toHaveText("已保存修改 ✓");
+    await expect(page.locator(".entry")).toContainText("已修改");
+    await expect(page.locator("#editBar")).toBeHidden();
+    await expect(page.locator("#save")).toHaveText("记录这一刻");
+    expect(errors).toEqual([]);
+  });
+
+  test("取消编辑会清空表单，不改动原记录", async ({ page }) => {
+    await boot(page);
+    await seed(page, [{ mood: 2, note: "原样保留" }]);
+    await page.locator(".entry").getByRole("button", { name: /^编辑/ }).click();
+    await page.fill("#note", "随便改改");
+    await page.click("#editCancel");
+    await expect(page.locator("#note")).toHaveValue("");
+    await expect(page.locator("#editBar")).toBeHidden();
+    expect(await page.evaluate(() => entries[0].note)).toBe("原样保留");
+  });
+
+  test("同步合并：保留最后修改的版本；删除晚于修改才算删除", async ({ page }) => {
+    await boot(page);
+    const r = await page.evaluate(() => {
+      const a = [{ id: "x", t: 1, u: 10, note: "本机较新" }], b = [{ id: "x", t: 1, u: 5, note: "云端较旧" }];
+      const c = [{ id: "y", t: 1, u: 5, note: "本机较旧" }], d = [{ id: "y", t: 1, u: 20, note: "云端较新" }];
+      return {
+        keepLocal: mergeColl(a, b, {})[0].note,
+        takeRemote: mergeColl(c, d, {})[0].note,
+        deletedAfterEdit: mergeColl(a, [], { x: 11 }).length,
+        editedAfterDelete: mergeColl(a, [], { x: 9 }).length,
+      };
+    });
+    expect(r).toEqual({ keepLocal: "本机较新", takeRemote: "云端较新", deletedAfterEdit: 0, editedAfterDelete: 1 });
+  });
+
+  test("删除标记只保留 180 天", async ({ page }) => {
+    await boot(page);
+    const keys = await page.evaluate(async () => { tomb = { old: Date.now() - 200 * 864e5, recent: Date.now() - 10 * 864e5 }; save(); await chain; return Object.keys(await Store.get("qy_tomb")); });
+    expect(keys).toEqual(["recent"]);
+  });
+
+  test("两个标签页同时打开：一边保存，另一边自动更新", async ({ page, context }) => {
+    await boot(page);
+    const other = await context.newPage();
+    await other.goto("/index.html");
+    await other.waitForFunction(() => window.qyReady === true);
+    await page.locator(".moods button").nth(3).click();
+    await page.fill("#note", "在第一个标签页写的");
+    await page.click("#save");
+    await expect(other.locator(".entry")).toContainText("在第一个标签页写的");
+  });
+});
+
+test.describe("自定义标签与睡眠时长", () => {
+  test("添加自定义压力来源并使用；删除标签不影响过去的记录", async ({ page }) => {
+    const errors = await boot(page);
+    await page.locator(".moods button").nth(1).click();
+    await page.locator("#trigsCustom .chip-add").click();
+    await page.locator("#trigsCustom .tagin").fill("导师催进度");
+    await page.locator("#trigsCustom").getByRole("button", { name: "添加" }).click();
+    const chip = page.locator("#trigsCustom .chip", { hasText: "导师催进度" });
+    await expect(chip).toHaveAttribute("aria-pressed", "true");
+    await page.click("#save");
+    expect(await page.evaluate(() => entries[0].trigs)).toEqual(["导师催进度"]);
+    await page.reload();
+    await page.waitForFunction(() => window.qyReady === true);
+    await expect(page.locator("#trigsCustom .chip", { hasText: "导师催进度" })).toBeVisible();
+    await page.locator("#trigsCustom").getByRole("button", { name: "删除标签「导师催进度」" }).click();
+    await expect(page.locator("#trigsCustom .chip", { hasText: "导师催进度" })).toHaveCount(0);
+    await expect(page.locator(".entry")).toContainText("导师催进度");
+    expect(errors).toEqual([]);
+  });
+
+  test("自定义标签：重复的直接选中，超过上限会提示", async ({ page }) => {
+    await boot(page);
+    await page.locator(".moods button").nth(1).click();
+    await page.locator("#trigsCustom .chip-add").click();
+    await page.locator("#trigsCustom .tagin").fill("学业/考试");
+    await page.locator("#trigsCustom .tagin").press("Enter");
+    await expect(page.locator("#trigs .chip", { hasText: "学业/考试" })).toHaveAttribute("aria-pressed", "true");
+    await page.evaluate(() => setCustom("trigs", Array.from({ length: 12 }, (_, i) => "标签" + i)));
+    await page.evaluate(() => renderCustom("trigs"));
+    await page.locator("#trigsCustom .chip-add").click();
+    await page.locator("#trigsCustom .tagin").fill("第十三个");
+    await page.locator("#trigsCustom .tagin").press("Enter");
+    await expect(page.locator("#trigsCustom .tagin")).toHaveAttribute("placeholder", "每组最多 12 个");
+  });
+
+  test("记录睡眠时长；周报在样本够时对比睡得少和睡得够的日子", async ({ page }) => {
+    await boot(page);
+    await page.locator(".moods button").nth(2).click();
+    await page.locator("#sleepChips .chip", { hasText: "6–7 小时" }).click();
+    await expect(page.locator("#sleepChips .chip", { hasText: "6–7 小时" })).toHaveAttribute("aria-checked", "true");
+    await page.click("#save");
+    expect(await page.evaluate(() => entries[0].sleep)).toBe(6.5);
+    await expect(page.locator(".entry")).toContainText("睡 6–7 小时");
+    await page.evaluate(() => { entries = [[1, 4.5], [2, 5.5], [4, 7.5], [5, 8.5], [4, 7.5]].map(([m, s], i) => ({ id: "z" + i, t: Date.now() - i * 36e5, mood: m, sleep: s, emos: [], trigs: [], pos: [], note: "" })); save(); render(); });
+    await tab(page, "insight");
+    await expect(page.locator("#rpBody")).toContainText("睡得少的日子心情可能更低");
+    await expect(page.locator("#rpBody")).toContainText("样本还少");
+  });
+
+  test("编辑时回填睡眠时长与自定义标签", async ({ page }) => {
+    await boot(page);
+    await page.evaluate(() => { setCustom("goods", ["晒太阳"]); renderCustom("goods"); entries = [{ id: "k", t: Date.now() - 6e5, mood: 4, emos: ["开心"], trigs: [], pos: ["晒太阳"], sleep: 7.5, note: "" }]; save(); render(); });
+    await page.locator(".entry").getByRole("button", { name: /^编辑/ }).click();
+    await expect(page.locator("#goodsCustom .chip", { hasText: "晒太阳" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#sleepChips .chip", { hasText: "7–8 小时" })).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+test.describe("使用情况、改进计划与反馈", () => {
+  test("使用情况只在本机计算；上报预览里没有任何日记内容", async ({ page }) => {
+    await boot(page);
+    await seed(page, [{ mood: 2, emos: ["焦虑"], trigs: ["学业/考试"], note: "非常私密的日记" }, { mood: 4, note: "另一条" }]);
+    await tab(page, "me");
+    await expect(page.locator("#usage")).toContainText("记录 2 条");
+    const preview = await page.locator("#rsPreview").innerText();
+    expect(preview).toContain("\"records_7d\": 2");
+    for (const secret of ["非常私密的日记", "焦虑", "学业/考试"]) expect(preview).not.toContain(secret);
+  });
+
+  test("加入改进计划后上报一次汇总，同一天不重复；退出会删除服务器上的数据", async ({ page }) => {
+    await boot(page);
+    const calls = [];
+    await page.route(/rest\/v1\/rpc\/(report_day|forget_install)/, async (r) => { calls.push({ fn: r.request().url().split("/").pop(), body: r.request().postDataJSON() }); await r.fulfill({ status: 204, body: "" }); });
+    await seed(page, [{ mood: 3, note: "x" }]);
+    await tab(page, "me");
+    await page.check("#rsOn");
+    await expect(page.locator("#rsMsg")).toContainText("已加入");
+    await expect.poll(() => calls.length).toBe(1);
+    const b = calls[0].body;
+    expect(calls[0].fn).toBe("report_day");
+    expect(b.p_records).toBe(1);
+    expect(Object.keys(b).sort()).toEqual(["p_active", "p_day", "p_delta", "p_first", "p_install", "p_practices", "p_rated", "p_records", "p_v"]);
+    await page.waitForFunction(() => !!JSON.parse(localStorage.getItem("qy_prefs")).research.last); // 等“今天已上报”记下来
+    await page.reload();
+    await page.waitForFunction(() => window.qyReady === true);
+    await page.waitForTimeout(2000);
+    expect(calls.length).toBe(1);
+    await tab(page, "me");
+    await page.click("#rsQuit");
+    await page.click("#rsQuit");
+    await expect(page.locator("#rsMsg")).toContainText("已退出改进计划");
+    expect(calls[1]).toEqual({ fn: "forget_install", body: { p_id: b.p_install } });
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem("qy_prefs")).research)).toBeUndefined();
+  });
+
+  test("没加入改进计划时不会上报", async ({ page }) => {
+    await boot(page);
+    let called = false;
+    await page.route(/rpc\/report_day/, (r) => { called = true; r.fulfill({ status: 204, body: "" }); });
+    await seed(page, [{ mood: 3 }]);
+    await page.reload();
+    await page.waitForFunction(() => window.qyReady === true);
+    await page.waitForTimeout(2000);
+    expect(called).toBe(false);
+  });
+
+  test("发送意见反馈；30 秒内不能重复发送", async ({ page }) => {
+    await boot(page);
+    const sent = [];
+    await page.route(/rest\/v1\/feedback/, async (r) => { sent.push(r.request().postDataJSON()); await r.fulfill({ status: 201, body: "" }); });
+    await tab(page, "me");
+    await page.fill("#fbBody", "希望能导出成图片");
+    await page.fill("#fbContact", "me@example.com");
+    await page.click("#fbSend");
+    await expect(page.locator("#fbMsg")).toHaveText("已收到，谢谢你的反馈。");
+    expect(sent[0]).toMatchObject({ body: "希望能导出成图片", contact: "me@example.com" });
+    await page.fill("#fbBody", "再来一条");
+    await page.click("#fbSend");
+    await expect(page.locator("#fbMsg")).toContainText("刚刚已经发送过了");
+    expect(sent.length).toBe(1);
+  });
+
+  test("删除全部数据时一并删除改进计划的数据", async ({ page }) => {
+    await boot(page);
+    const calls = [];
+    await page.route(/rest\/v1\/rpc\/forget_install/, async (r) => { calls.push(r.request().postDataJSON()); await r.fulfill({ status: 204, body: "" }); });
+    await page.evaluate(() => { const p = JSON.parse(localStorage.getItem("qy_prefs")); p.research = { on: true, id: "11111111-1111-4111-8111-111111111111", last: "" }; localStorage.setItem("qy_prefs", JSON.stringify(p)); });
+    await tab(page, "me");
+    await page.click("#delOpen");
+    await expect(page.locator("#delList")).toContainText("改进计划上报的数据");
+    await page.fill("#delConfirm", "删除");
+    await page.click("#delGo");
+    await expect(page.locator("#delMsg")).toContainText("改进计划数据：已删除");
+    expect(calls).toEqual([{ p_id: "11111111-1111-4111-8111-111111111111" }]);
   });
 });

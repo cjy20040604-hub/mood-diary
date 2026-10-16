@@ -8,7 +8,7 @@
 <title>晴一日记 · 隐私政策与使用条款</title>
 <style>
 /* 单列阅读页，沿用应用的配色与字体栈 */
-:root{--bg:#f3f6f5;--card:#fff;--fg:#1f2f2d;--mute:#6b7d7a;--line:#dbe5e2;--accent:#2f8f83;--accent-soft:#dff1ee;--warm-soft:#fbe9dc;
+:root{--bg:#f3f6f5;--card:#fff;--fg:#1f2f2d;--mute:#5a6c69;--line:#dbe5e2;--accent:#22736a;--accent-soft:#dff1ee;--warm-soft:#fbe9dc;
 --body:"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;--display:"Songti SC","Noto Serif SC",serif}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121b1a;--card:#1b2827;--fg:#e6efed;--mute:#97aaa6;--line:#2c3d3b;--accent:#5cc2b3;--accent-soft:#1f3a36;--warm-soft:#3a2a1f;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#121b1a;--card:#1b2827;--fg:#e6efed;--mute:#97aaa6;--line:#2c3d3b;--accent:#5cc2b3;--accent-soft:#1f3a36;--warm-soft:#3a2a1f;color-scheme:dark}
@@ -33,7 +33,7 @@ nav.back{max-width:720px;margin:0 auto 12px}
 <nav class="back"><a href="./">← 返回晴一日记</a></nav>
 <main>
 <h1>隐私政策与使用条款</h1>
-<p class="sub">生效日期：2026 年 10 月 17 日 · 版本 3（更新内容：取消经晴一服务器转发的 AI 复盘，AI 复盘只使用你自己填写的接口；本机数据改存 IndexedDB；云端同步支持恢复码）</p>
+<p class="sub">生效日期：2026 年 10 月 17 日 · 版本 4（更新内容：新增可选的“改进计划”和“意见反馈”；不再从 Google 加载字体；AI 复盘只使用你自己填写的接口；本机数据改存 IndexedDB；云端同步支持恢复码）</p>
 
 <div class="note">
 <p style="margin:0"><b>先说重点：</b>你的心情和日记默认只保存在你自己的设备上，我们看不到。只有你主动开启云同步、服务器推送或 AI 复盘时，相关数据才会离开你的设备，并且每一项都会先单独征得你的同意。你可以随时导出或删除全部数据。晴一日记不是医疗服务。</p>
@@ -52,6 +52,8 @@ nav.back{max-width:720px;margin:0 auto 12px}
  <li>服务器推送：浏览器生成的推送地址与密钥、提醒时间、时区。不包含任何日记内容。</li>
  <li>GitHub Gist 同步：在本机加密后的数据密文，存放在你自己的 GitHub 账号中。</li>
  <li>AI 复盘：本周的统计结果和部分日记文字，直接发送到你自己填写的 AI 接口。晴一不提供、也不经手这项服务。</li>
+ <li>改进计划：每天最多一次的匿名汇总数字，包括近 7 天的记录条数、记录天数、练习次数、前后都评分的练习次数及平均变化、首次使用日期、版本号，以及一个在你设备上随机生成的标识。不包含任何日记内容、情绪、标签、具体时间或账号信息。设置页会原样展示将要上报的内容。</li>
+ <li>意见反馈：你主动填写的反馈内容和可选的联系方式。</li>
  </ul></li>
 </ul>
 <p>我们不收集你的姓名、手机号、位置、通讯录，也不做广告追踪或用户画像。</p>
@@ -63,12 +65,13 @@ nav.back{max-width:720px;margin:0 auto 12px}
 <div class="tbl"><table>
 <tr><th>功能</th><th>服务方</th><th>存储位置</th><th>存什么</th></tr>
 <tr><td>网页托管</td><td>GitHub Pages</td><td>美国</td><td>只提供网页文件，不存你的数据；访问时服务方会看到你的 IP 地址</td></tr>
-<tr><td>网页字体</td><td>Google Fonts</td><td>美国</td><td>加载字体时，服务方会看到你的 IP 地址</td></tr>
 <tr><td>本机记录</td><td>你的浏览器（IndexedDB）</td><td>你的设备</td><td>全部记录；启用“本机加密”后为密文</td></tr>
 <tr><td>云端账号与同步（可选）</td><td>Supabase</td><td>爱尔兰（欧盟）</td><td>邮箱、数据密文</td></tr>
 <tr><td>服务器推送（可选）</td><td>Supabase；浏览器厂商的推送服务</td><td>爱尔兰（欧盟）；由浏览器决定</td><td>推送地址、提醒时间、时区</td></tr>
 <tr><td>Gist 同步（可选）</td><td>GitHub</td><td>美国</td><td>数据密文</td></tr>
 <tr><td>AI 复盘（可选）</td><td>你自己填写的服务</td><td>取决于该服务</td><td>本周统计与部分日记文字</td></tr>
+<tr><td>改进计划（可选）</td><td>Supabase</td><td>爱尔兰（欧盟）</td><td>匿名汇总数字与随机标识</td></tr>
+<tr><td>意见反馈（可选）</td><td>Supabase</td><td>爱尔兰（欧盟）</td><td>反馈内容与可选的联系方式</td></tr>
 </table></div>
 <p>以上可选功能涉及把信息传输到中国境外。只有在你勾选对应的同意项后才会发生。云同步和 Gist 同步的数据在你的设备上加密后才上传，服务方和我们都无法读取内容。</p>
 
@@ -85,6 +88,7 @@ nav.back{max-width:720px;margin:0 auto 12px}
 <li>本机数据：保存在你的浏览器里，直到你删除或清除浏览器数据。</li>
 <li>云端数据：保存到你删除云端数据或删除账号为止。</li>
 <li>推送订阅：你关闭推送、删除全部数据，或浏览器推送地址失效时删除。</li>
+<li>改进计划与意见反馈：最长 12 个月，到期自动删除；退出改进计划时立即删除对应的数据。</li>
 <li>为防止接口被滥用而记录的请求频率信息：只保存不可还原的 IP 摘要和计数，通常一天内自动清除。</li>
 </ul>
 
@@ -94,6 +98,7 @@ nav.back{max-width:720px;margin:0 auto 12px}
 <li><b>更正：</b>可以删除记录后重新记录。</li>
 <li><b>删除与撤回同意：</b>在「设置 → 我的数据 → 删除我的全部数据」一次性删除本机数据、云端账号与数据、推送订阅；如使用过 Gist 同步，可一并删除或在 GitHub 手动删除。删除即视为撤回同意。</li>
 <li><b>单项撤回：</b>取消勾选对应同意项、退出登录、关闭推送或断开 Gist，即可停止相应处理。</li>
+<li><b>退出改进计划：</b>在「设置 → 改进计划」点“退出并删除已上报的数据”，服务器上的相关数据会立即删除。加入改进计划期间发送的反馈会一并删除；未加入时发送的反馈无法与你关联，如需删除请通过第 1 节的方式联系我们。</li>
 <li>如对个人信息处理有疑问或投诉，可通过第 1 节的方式联系我们。</li>
 </ul>
 
