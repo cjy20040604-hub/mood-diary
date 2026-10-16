@@ -119,6 +119,9 @@ a{color:var(--accent)}
 .linkbtn{background:none;border:0;color:var(--accent);font:inherit;cursor:pointer;padding:0;text-decoration:underline}
 #delPanel ul{margin:6px 0;padding-left:20px}
 .alert b{font-variant-numeric:tabular-nums}
+.tag.g{background:transparent;border:1px solid var(--accent);color:var(--accent)}
+.chip.g[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.grp{align-self:center;min-width:3.5em;font-size:12px}
 </style>
 </head>
 <body>
@@ -144,9 +147,9 @@ a{color:var(--accent)}
    <h2>此刻心情如何？</h2>
    <div class="moods" id="moods"></div>
    <label class="l">具体的情绪（可多选）</label>
-   <div class="chips" id="emos"></div>
-   <label class="l">是什么触发了它？（可多选）</label>
-   <div class="chips" id="trigs"></div>
+   <div id="emos"><div class="chips" id="emosNeg"><span class="sub grp">不太好</span></div><div class="chips" id="emosPos" style="margin-top:8px"><span class="sub grp">还不错</span></div></div>
+   <div id="trigNegBox"><label class="l">是什么让你有这种感受？（可多选）</label><div class="chips" id="trigs"></div></div>
+   <div id="trigPosBox"><label class="l">是什么让你感觉不错？（可多选）</label><div class="chips" id="goods"></div></div>
    <label class="l" for="note" id="prompt">想说点什么（可选）</label>
    <textarea id="note"></textarea>
    <button class="primary" id="save">记录这一刻</button>
@@ -171,7 +174,8 @@ a{color:var(--accent)}
   <div class="card"><h2>近 14 天情绪曲线</h2><div id="chart"></div><p class="sub" id="avg"></p></div>
   <div class="card"><h2>情绪日历</h2><div class="row" style="margin-bottom:8px"><button class="ghost on" id="calW">最近 5 周</button><button class="ghost" id="calY">全年像素图</button></div><div class="heat" id="heat"></div><div class="year hide" id="year"></div>
    <div class="row sub" style="margin-top:8px">低<span class="chips" style="gap:3px"><span class="tag" style="background:var(--l1)">&nbsp;</span><span class="tag" style="background:var(--l2)">&nbsp;</span><span class="tag" style="background:var(--l3)">&nbsp;</span><span class="tag" style="background:var(--l4)">&nbsp;</span><span class="tag" style="background:var(--l5)">&nbsp;</span></span>高</div></div>
-  <div class="card"><h2>触发因素排行</h2><p class="sub">按「带来的低落程度」排序，越长越需要关注</p><div id="trigbars"></div><div class="insight" id="insightText"></div></div>
+  <div class="card"><h2>压力来源排行</h2><p class="sub">按相关记录的低落程度排序，越长越需要关注</p><div id="trigbars"></div><div class="insight" id="insightText"></div></div>
+  <div class="card"><h2>让你变好的事（近 30 天）</h2><p class="sub">按出现次数排序，右侧是相关记录的平均心情</p><div id="goodbars"></div></div>
   <div class="card"><h2>情绪构成（近 30 天）</h2><div id="emobars"></div></div>
   <button class="ghost" id="demo">载入示例数据，预览洞察效果</button>
  </section>
@@ -242,7 +246,7 @@ a{color:var(--accent)}
     <div class="row" style="margin-top:10px"><button class="ghost" id="sbIn">登录</button><button class="ghost" id="sbUp">注册新账号</button></div>
    </div>
    <div id="sbIn2" class="hide"><p class="sub" id="sbWho"></p>
-    <div class="row" style="margin-top:6px"><button class="ghost" id="sbNow">立即同步</button><button class="ghost" id="sbLogout">退出登录</button><button class="ghost" id="sbDel">删除云端数据</button></div></div>
+    <div class="row" style="margin-top:6px"><button class="ghost" id="sbNow">立即同步</button><button class="ghost" id="sbLogout">退出登录</button><button class="ghost" id="sbDel">仅删除云端数据（保留账号）</button></div></div>
    <label class="l" for="sbPass">云端加密口令（至少 6 位，与账号密码不同）</label><input type="password" id="sbPass" autocomplete="off">
    <label class="row sub" style="margin-top:10px"><input type="checkbox" id="sbKeep"> 记住登录与口令，解锁后自动同步（仅在启用本机加密后生效，加密保存）</label>
    <p class="sub" id="sbMsg" style="margin-top:8px"></p>
@@ -314,7 +318,12 @@ const NEG=["焦虑","烦躁","委屈","孤独","疲惫","自责"];
 const TRIGS=["学业/考试","工作/实习","人际社交","家庭","睡眠不足","自我比较","未来迷茫","经济压力","身体不适"];
 const KIND={焦虑:"anx",烦躁:"anx",委屈:"sad",孤独:"sad",疲惫:"tired",自责:"sad",平静:"ok",开心:"ok",期待:"ok",感恩:"ok"};
 const KNAME={anx:"紧绷不安",sad:"低落难过",tired:"疲惫",ok:"平稳愉快"};
-const PROMPTS=["今天最让你消耗的一件事是什么？","此刻身体哪里最紧？","今天有什么一件小事让你好受一点？","如果朋友有同样的感受，你会对 TA 说什么？","你现在最需要的是休息、倾诉，还是行动？","今天哪件事你做得比自己以为的好？","让你烦的事，有哪一部分是你能控制的？"];
+const POS_EMOS=EMOS.filter(x=>!NEG.includes(x));
+// 正面情绪的来源：和压力来源分开记录、分开统计
+const GOODS=["完成了一件事","被认可/夸奖","和朋友/家人在一起","运动/户外","睡了个好觉","吃到好吃的","兴趣爱好","帮助了别人","放松/休息"];
+// 写作提示跟着心情走，避免心情很好时问“最消耗你的事”
+const PROMPTS={low:["今天最让你消耗的一件事是什么？","此刻身体哪里最紧？","让你烦的事，有哪一部分是你能控制的？","如果朋友有同样的感受，你会对 TA 说什么？","你现在最需要的是休息、倾诉，还是行动？"],mid:["今天有什么一件小事让你好受一点？","此刻最真实的感受是什么？","今天有什么事一直在脑子里转？"],high:["是什么让今天变好了一点？","今天哪件事你做得比自己以为的好？","想感谢谁，或者想记住哪个瞬间？"]};
+const promptFor=m=>{const a=PROMPTS[m>=4?"high":m&&m<=2?"low":"mid"];return a[new Date().getDate()%a.length]};
 const QUOTES=["你不需要一直坚强，也值得被温柔对待。","情绪像天气，会来也会走。","今天做到这样，已经很好了。","先照顾好自己，再去应付世界。"];
 const WD=["周日","周一","周二","周三","周四","周五","周六"];
 const $=s=>document.querySelector(s);
@@ -408,11 +417,18 @@ function renderNow(done){const n=$("#now");n.innerHTML="";
  n.classList.add("hide")}
 
 /* ---------- 标签与表单 ---------- */
-let S={mood:0,emos:new Set(),trigs:new Set()},shown=6;
-function chips(box,arr,set,cls){arr.forEach(x=>{const b=el("button",{class:"chip "+cls,text:x,"aria-pressed":"false",onclick:()=>{set.has(x)?set.delete(x):set.add(x);b.setAttribute("aria-pressed",set.has(x))}});box.append(b)})}
-MOODS.forEach(m=>{const b=el("button",{"aria-pressed":"false"},el("span",{class:"f",text:m.f}),el("span",{class:"t",text:m.t}));b.onclick=()=>{S.mood=m.v;[...$("#moods").children].forEach(c=>c.setAttribute("aria-pressed",c===b))};$("#moods").append(b)});
-chips($("#emos"),EMOS,S.emos,"");chips($("#trigs"),TRIGS,S.trigs,"w");
-$("#note").placeholder=PROMPTS[new Date().getDate()%PROMPTS.length];
+let S={mood:0,emos:new Set(),trigs:new Set(),goods:new Set()},shown=6;
+function chips(box,arr,set,cls,after){arr.forEach(x=>{const b=el("button",{class:"chip "+cls,text:x,"aria-pressed":"false",onclick:()=>{set.has(x)?set.delete(x):set.add(x);b.setAttribute("aria-pressed",set.has(x));if(after)after()}});box.append(b)})}
+MOODS.forEach(m=>{const b=el("button",{"aria-pressed":"false"},el("span",{class:"f",text:m.f}),el("span",{class:"t",text:m.t}));b.onclick=()=>{S.mood=m.v;[...$("#moods").children].forEach(c=>c.setAttribute("aria-pressed",c===b));syncReasons()};$("#moods").append(b)});
+chips($("#emosNeg"),NEG,S.emos,"",()=>syncReasons());chips($("#emosPos"),POS_EMOS,S.emos,"",()=>syncReasons());chips($("#trigs"),TRIGS,S.trigs,"w");chips($("#goods"),GOODS,S.goods,"g");
+// 原因跟着情绪方向显示：选了负面情绪问压力来源，选了正面情绪问好的来源；没选情绪时按心情判断
+function reasonSides(){const neg=[...S.emos].some(x=>NEG.includes(x)),pos=[...S.emos].some(x=>!NEG.includes(x));
+ if(neg||pos)return{neg,pos};const m=S.mood;return{neg:!m||m<=3,pos:!m||m>=3}}
+function syncReasons(){const r=reasonSides();$("#trigNegBox").classList.toggle("hide",!r.neg);$("#trigPosBox").classList.toggle("hide",!r.pos);
+ if(!r.neg){S.trigs.clear();document.querySelectorAll("#trigs .chip").forEach(c=>c.setAttribute("aria-pressed","false"))}
+ if(!r.pos){S.goods.clear();document.querySelectorAll("#goods .chip").forEach(c=>c.setAttribute("aria-pressed","false"))}
+ $("#note").placeholder=promptFor(S.mood)}
+syncReasons();
 function goTab(t){document.querySelectorAll("nav button").forEach(x=>x.setAttribute("aria-selected",x.dataset.t===t));document.querySelectorAll(".tab").forEach(s=>s.classList.toggle("hide",s.id!==t));render()}
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>goTab(b.dataset.t));
 
@@ -427,25 +443,25 @@ function recsFor(k){const r=RECS[k],m=MEDS.find(x=>x.id===r.med),x=EXS.find(x=>x
 
 $("#save").onclick=()=>{
  if(!S.mood){$("#save").textContent="请先选择一个心情";setTimeout(()=>$("#save").textContent="记录这一刻",1500);return}
- const e={id:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:Date.now(),mood:S.mood,emos:[...S.emos],trigs:[...S.trigs],note:$("#note").value.trim()};
+ const e={id:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:Date.now(),mood:S.mood,emos:[...S.emos],trigs:[...S.trigs],pos:[...S.goods],note:$("#note").value.trim()};
  if(isRisk(e.note))e.risk=true;
  entries.unshift(e);save();if(typeof pushDone==="function")pushDone();
  const k=kindOf(e),a=$("#after");a.hidden=false;a.innerHTML="";
  if(e.risk){a.append(el("h2",{text:"已记录"}),el("p",{style:"margin:0 0 8px",text:"谢谢你愿意写下来。你不需要一个人扛着，现在就可以找人说说。"}),el("div",{class:"row"},el("b",{text:"心理援助热线 12356"}),el("button",{class:"ghost",text:"查看求助方式",onclick:()=>openSupport("risk")})));openSupport("risk")}
- else a.append(el("h2",{text:"已记录 ✓"}),el("p",{style:"margin:0 0 4px",text:(e.mood<=2?"听起来今天不太容易。":"谢谢你记下这一刻。")+(e.trigs.length?`看起来「${e.trigs[0]}」对你有影响。`:"")+"试试下面一个小练习："}),recsFor(k)[0]);
- S.mood=0;S.emos.clear();S.trigs.clear();$("#note").value="";document.querySelectorAll(".chip,.moods button").forEach(b=>b.setAttribute("aria-pressed","false"));render()};
+ else a.append(el("h2",{text:"已记录 ✓"}),el("p",{style:"margin:0 0 4px",text:(e.mood<=2?"听起来今天不太容易。":"谢谢你记下这一刻。")+(e.trigs.length?`看起来「${e.trigs[0]}」对你有影响。`:e.pos.length?`「${e.pos[0]}」让你感觉不错，值得多留一点时间给它。`:"")+(e.mood>=4?"想延续这份好状态，可以试试：":"试试下面一个小练习：")}),recsFor(k)[0]);
+ S.mood=0;S.emos.clear();S.trigs.clear();S.goods.clear();$("#note").value="";document.querySelectorAll(".chip,.moods button").forEach(b=>b.setAttribute("aria-pressed","false"));syncReasons();render()};
 $("#filter").onchange=()=>{shown=6;renderList()};
 $("#search").oninput=()=>{shown=6;renderList()};
 $("#more").onclick=()=>{shown+=10;renderList()};
 
 function renderList(){const box=$("#list");box.innerHTML="";const f=$("#filter").value;
  const q=($("#search").value||"").trim().toLowerCase();
- const all=entries.filter(e=>(f==="0"||(f==="low"&&e.mood<=2)||(f==="mid"&&e.mood===3)||(f==="high"&&e.mood>=4))&&(!q||[e.note,...e.emos,...e.trigs].join(" ").toLowerCase().includes(q)));
+ const all=entries.filter(e=>(f==="0"||(f==="low"&&e.mood<=2)||(f==="mid"&&e.mood===3)||(f==="high"&&e.mood>=4))&&(!q||[e.note,...e.emos,...e.trigs,...(e.pos||[])].join(" ").toLowerCase().includes(q)));
  $("#count").textContent=`共 ${all.length} 条`;
  if(!all.length){box.append(el("p",{class:"sub",text:entries.length?"没有符合条件的记录。":"还没有记录。选一个心情，开始第一条吧。"}))}
  all.slice(0,shown).forEach(e=>{let armed=false;const del=el("button",{class:"ghost",text:"删除"});
   del.onclick=()=>{if(!armed){armed=true;del.textContent="确认删除";setTimeout(()=>{armed=false;del.textContent="删除"},2500)}else{entries=entries.filter(x=>x.id!==e.id);tomb[e.id]=Date.now();save();render()}};
-  box.append(el("div",{class:"entry"},el("span",{class:"f",text:MOODS[e.mood-1].f}),el("div",{class:"m"},el("div",{class:"d"},el("span",{text:fmt(e.t)}),del),e.emos.map(x=>el("span",{class:"tag",text:x})),e.trigs.map(x=>el("span",{class:"tag w",text:x})),e.note?el("div",{class:"n",text:e.note}):null)))});
+  box.append(el("div",{class:"entry"},el("span",{class:"f",text:MOODS[e.mood-1].f}),el("div",{class:"m"},el("div",{class:"d"},el("span",{text:fmt(e.t)}),del),e.emos.map(x=>el("span",{class:"tag",text:x})),e.trigs.map(x=>el("span",{class:"tag w",text:x})),(e.pos||[]).map(x=>el("span",{class:"tag g",text:x})),e.note?el("div",{class:"n",text:e.note}):null)))});
  $("#more").classList.toggle("hide",all.length<=shown)}
 
 /* ---------- 洞察 ---------- */
@@ -479,6 +495,8 @@ function weekReport(w){const t0=dayStart(Date.now()),end=t0+DAY-w*7*DAY,start=en
  const tm={};es.forEach(e=>e.trigs.forEach(t=>{(tm[t]=tm[t]||{n:0,s:0});tm[t].n++;tm[t].s+=e.mood}));
  const tr=Object.entries(tm).map(([k,v])=>({k,n:v.n,a:v.s/v.n})).filter(t=>t.n>=2&&avg-t.a>=.5).sort((a,b)=>a.a-b.a);
  if(tr.length){const t=tr[0];R.paras.push(`「${t.k}」可能在拉低你的心情：相关的 ${t.n} 条记录平均 ${t.a.toFixed(1)}，比本周整体低 ${(avg-t.a).toFixed(1)}。`)}
+ const gw={};es.forEach(e=>(e.pos||[]).forEach(g=>{(gw[g]=gw[g]||{n:0,s:0});gw[g].n++;gw[g].s+=e.mood}));const gt=Object.entries(gw).map(([k,v])=>({k,n:v.n,a:v.s/v.n})).filter(g=>g.n>=2).sort((a,b)=>b.n-a.n);
+ if(gt.length)R.paras.push(`让你感觉不错的事里，「${gt[0].k}」出现了 ${gt[0].n} 次，相关记录平均心情 ${gt[0].a.toFixed(1)}。可以有意多安排一些。`);
  const sl=es.filter(e=>e.trigs.includes("睡眠不足")),ns=es.filter(e=>!e.trigs.includes("睡眠不足"));
  if(sl.length>=2&&ns.length>=2&&avgOf(ns)-avgOf(sl)>=.8)R.paras.push(`睡眠不足时心情可能更低：这 ${sl.length} 条记录平均 ${avgOf(sl).toFixed(1)}，其他 ${ns.length} 条平均 ${avgOf(ns).toFixed(1)}。`+(es.length<10?"样本还少，先当作一个线索。":""));
  if(w===0){const from=t0+DAY-56*DAY,dayAvg={};inRange(from,t0+DAY).forEach(e=>{const k=dayStart(e.t);(dayAvg[k]=dayAvg[k]||[]).push(e.mood)});
@@ -511,9 +529,11 @@ function renderInsight(){
  renderHeat();
  const m={};entries.forEach(e=>e.trigs.forEach(t=>{(m[t]=m[t]||{n:0,s:0});m[t].n++;m[t].s+=e.mood}));
  const rows=Object.entries(m).map(([k,v])=>({k,n:v.n,avg:v.s/v.n,low:5-v.s/v.n})).sort((a,b)=>b.low-a.low||b.n-a.n);
- if(rows.length)barRows($("#trigbars"),rows.map(r=>({...r,w:(r.low/4*100).toFixed(0)})),"",r=>`${r.n}次·${r.avg.toFixed(1)}`);else $("#trigbars").innerHTML='<p class="sub">记录时勾选触发因素，就能看到哪些事最影响你。</p>';
+ if(rows.length)barRows($("#trigbars"),rows.map(r=>({...r,w:(r.low/4*100).toFixed(0)})),"",r=>`${r.n}次·${r.avg.toFixed(1)}`);else $("#trigbars").innerHTML='<p class="sub">记录时勾选让你有压力的事，就能看到哪些事最影响你。</p>';
  const t=rows.find(r=>r.n>=2);$("#insightText").hidden=!t;
- if(t){let s=`「${t.k}」可能是目前最值得留意的触发因素：相关的 ${t.n} 条记录平均心情 ${t.avg.toFixed(1)}。`;const sl=entries.filter(e=>e.trigs.includes("睡眠不足"));if(sl.length>=3&&t.k!=="睡眠不足")s+=` 另外，睡眠不足出现了 ${sl.length} 次，可以优先照顾睡眠。`;$("#insightText").textContent="💡 "+s}
+ if(t){let s=`「${t.k}」可能是目前最值得留意的压力来源：相关的 ${t.n} 条记录平均心情 ${t.avg.toFixed(1)}。`;const sl=entries.filter(e=>e.trigs.includes("睡眠不足"));if(sl.length>=3&&t.k!=="睡眠不足")s+=` 另外，睡眠不足出现了 ${sl.length} 次，可以优先照顾睡眠。`;$("#insightText").textContent="💡 "+s}
+ const gm={};entries.filter(e=>e.t>now-30*DAY).forEach(e=>(e.pos||[]).forEach(g=>{(gm[g]=gm[g]||{n:0,s:0});gm[g].n++;gm[g].s+=e.mood}));const gr=Object.entries(gm).map(([k,v])=>({k,n:v.n,avg:v.s/v.n})).sort((a,b)=>b.n-a.n||b.avg-a.avg),gx=gr[0]?gr[0].n:1;
+ if(gr.length)barRows($("#goodbars"),gr.map(r=>({...r,w:(r.n/gx*100).toFixed(0)})),"a",r=>`${r.n}次·${r.avg.toFixed(1)}`);else $("#goodbars").innerHTML='<p class="sub">心情不错时勾选原因，这里会记下哪些事在滋养你。</p>';
  const ec={};entries.filter(e=>e.t>now-30*DAY).forEach(e=>e.emos.forEach(x=>ec[x]=(ec[x]||0)+1));const er=Object.entries(ec).map(([k,n])=>({k,n})).sort((a,b)=>b.n-a.n),mx=er[0]?er[0].n:1;
  if(er.length)barRows($("#emobars"),er.map(r=>({...r,w:(r.n/mx*100).toFixed(0)})),"a",r=>r.n+"次");else $("#emobars").innerHTML='<p class="sub">选择具体情绪后，这里显示构成。</p>';
  renderReport()}
@@ -539,10 +559,12 @@ $("#aiSave").onclick=()=>{const base=$("#aiBase").value.trim()||"https://api.ope
 initAIUI();
 $("#exp").onclick=()=>{const u=URL.createObjectURL(new Blob([JSON.stringify({app:"qingyi",entries},null,1)],{type:"application/json"}));const a=el("a",{href:u,download:"qingyi-backup.json"});document.body.append(a);a.click();a.remove();$("#meMsg").textContent=`已导出 ${entries.length} 条记录。备份文件没有加密，请妥善保管。若浏览器没有下载，请改用普通浏览器标签打开本页再试。`};
 $("#impBtn").onclick=()=>$("#imp").click();
-$("#imp").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result),arr=Array.isArray(j)?j:j.entries;if(!Array.isArray(arr))throw 0;const ids=new Set(entries.map(x=>x.id));let n=0;arr.forEach(x=>{if(x&&x.mood>=1&&x.mood<=5&&x.t&&!ids.has(x.id)){entries.push({id:x.id||x.t+"-"+Math.random().toString(36).slice(2,6),t:+x.t,mood:+x.mood,emos:x.emos||[],trigs:x.trigs||[],note:x.note||""});n++}});entries.sort((a,b)=>b.t-a.t);save();render();$("#meMsg").textContent=`导入完成，新增 ${n} 条。`}catch(err){$("#meMsg").textContent="文件格式不正确。"}};r.readAsText(f);e.target.value=""};
+$("#imp").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result),arr=Array.isArray(j)?j:j.entries;if(!Array.isArray(arr))throw 0;const ids=new Set(entries.map(x=>x.id));let n=0;arr.forEach(x=>{if(x&&x.mood>=1&&x.mood<=5&&x.t&&!ids.has(x.id)){entries.push({id:x.id||x.t+"-"+Math.random().toString(36).slice(2,6),t:+x.t,mood:+x.mood,emos:x.emos||[],trigs:x.trigs||[],pos:x.pos||[],note:x.note||""});n++}});entries.sort((a,b)=>b.t-a.t);save();render();$("#meMsg").textContent=`导入完成，新增 ${n} 条。`}catch(err){$("#meMsg").textContent="文件格式不正确。"}};r.readAsText(f);e.target.value=""};
 $("#clrDemo").onclick=()=>{entries=entries.filter(e=>!e.demo);save();render();$("#meMsg").textContent="已清除示例数据。"};
-$("#demo").onclick=()=>{const T=["学业/考试","工作/实习","人际社交","睡眠不足","自我比较"],notes=["组会被点名，脑子一片空白","和室友聊了会儿，轻松多了","通宵改 PPT，整个人是飘的","今天跑了步，心情不错","担心实习转正的事"];
- entries=entries.filter(e=>!e.demo).concat(Array.from({length:24},(_,i)=>{const tr=T[i%5],low=tr==="学业/考试"||tr==="睡眠不足";return{id:"demo"+i,demo:true,t:Date.now()-i*DAY*1.2-3600e3*(i%5),mood:low?1+(i%2):3+(i%3),emos:[low?(i%3?"焦虑":"疲惫"):(i%2?"平静":"开心")],trigs:[tr],note:notes[i%5]}})).sort((a,b)=>b.t-a.t);save();render()};
+$("#demo").onclick=()=>{
+ // 每条模板里的心情、情绪、原因和备注说的是同一件事
+ const TPL=[{m:[1,2],emos:["焦虑"],trigs:["学业/考试"],note:"组会被点名，脑子一片空白"},{m:[4,5],emos:["开心"],pos:["和朋友/家人在一起"],note:"和室友聊了会儿，轻松多了"},{m:[1,2],emos:["疲惫"],trigs:["睡眠不足","工作/实习"],note:"通宵改 PPT，整个人是飘的"},{m:[4,5],emos:["平静"],pos:["运动/户外"],note:"今天跑了步，心情不错"},{m:[2,3],emos:["焦虑"],trigs:["工作/实习"],note:"担心实习转正的事"},{m:[2,2],emos:["自责"],trigs:["自我比较"],note:"刷到同学拿到大厂 offer，有点慌"},{m:[4,4],emos:["期待"],pos:["完成了一件事"],note:"终于交了论文初稿"}];
+ entries=entries.filter(e=>!e.demo).concat(Array.from({length:24},(_,i)=>{const p=TPL[i%TPL.length];return{id:"demo"+i,demo:true,t:Date.now()-i*DAY*1.2-3600e3*(i%5),mood:p.m[i%2],emos:p.emos,trigs:p.trigs||[],pos:p.pos||[],note:p.note}})).sort((a,b)=>b.t-a.t);save();render()};
 
 function render(){renderList();renderInsight();renderCare();alertHtml($("#lowAlert"));alertHtml($("#careAlert"));
  const ds=new Set(entries.map(e=>dayStart(e.t)));let n=0,t=dayStart(Date.now());if(!ds.has(t))t-=DAY;while(ds.has(t)){n++;t-=DAY}
@@ -712,8 +734,8 @@ async function sbSync(silent){if(sbBusy)return;if(silent?!agreed("sb"):!needAgre
  catch(e){sbMsg("同步失败："+e.message)}sbBusy=false}
 $("#sbNow").onclick=()=>sbSync(false);
 $("#sbLogout").onclick=async()=>{try{if(sess)await fetch(SB+"/auth/v1/logout",{method:"POST",headers:sbH(sess.at)})}catch(e){}sess=null;if(vaultKey){delete secrets.sb;save()}sbUI();sbMsg("已退出登录，本机不再保留登录状态。")};
-let sbArm=false;$("#sbDel").onclick=async()=>{if(!sbArm){sbArm=true;$("#sbDel").textContent="再点一次确认删除";setTimeout(()=>{sbArm=false;$("#sbDel").textContent="删除云端数据"},3000);return}
- sbArm=false;$("#sbDel").textContent="删除云端数据";try{const tok=await sbToken(),r=await fetch(SB+"/rest/v1/vaults?user_id=eq."+sess.uid,{method:"DELETE",headers:sbH(tok)});if(!r.ok)throw new Error("状态 "+r.status);sbMsg("云端加密数据已删除。本机数据不受影响。")}catch(e){sbMsg("删除失败："+e.message)}};
+let sbArm=false;$("#sbDel").onclick=async()=>{if(!sbArm){sbArm=true;$("#sbDel").textContent="再点一次：只删数据，账号保留";setTimeout(()=>{sbArm=false;$("#sbDel").textContent="仅删除云端数据（保留账号）"},3000);return}
+ sbArm=false;$("#sbDel").textContent="仅删除云端数据（保留账号）";try{const tok=await sbToken(),r=await fetch(SB+"/rest/v1/vaults?user_id=eq."+sess.uid,{method:"DELETE",headers:sbH(tok)});if(!r.ok)throw new Error("状态 "+r.status);sbMsg("云端加密数据已删除，账号仍然保留，本机数据也不受影响。如需连账号一起删除，请使用下方「我的数据 → 删除我的全部数据」。")}catch(e){sbMsg("删除失败："+e.message)}};
 function sbRestore(){const s=secrets.sb;if(!s||!s.rt)return;sess={at:"",rt:s.rt,exp:0,email:s.email,uid:s.uid};$("#sbKeep").checked=true;$("#sbPass").value=s.cp||"";sbUI();if(s.cp)setTimeout(()=>sbSync(true),1500)}
 sbUI();
 

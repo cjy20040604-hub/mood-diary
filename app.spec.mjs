@@ -283,6 +283,26 @@ test.describe("数据安全", () => {
     expect(await page.evaluate(() => localStorage.length)).toBe(0);
   });
 
+  test("“仅删除云端数据”只删数据、保留账号，并说明清楚", async ({ page }) => {
+    await boot(page);
+    const calls = [];
+    await page.route(/rest\/v1\/vaults/, async (r) => { calls.push(r.request().method() + " " + r.request().url()); await r.fulfill({ status: 204, body: "" }); });
+    await page.route(/functions\/v1\/push/, async (r) => { calls.push("FN " + r.request().postData()); await r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' }); });
+    await page.evaluate(() => { sess = { at: "user-access-token", rt: "r", exp: Date.now() + 1e6, email: "a@b.c", uid: "u1" }; sbUI(); });
+    await tab(page, "me");
+    const btn = page.locator("#sbDel");
+    await expect(btn).toHaveText("仅删除云端数据（保留账号）");
+    await btn.click();
+    await expect(btn).toHaveText("再点一次：只删数据，账号保留");
+    expect(calls).toEqual([]);
+    await btn.click();
+    await expect(page.locator("#sbMsg")).toContainText("账号仍然保留");
+    await expect(page.locator("#sbMsg")).toContainText("删除我的全部数据");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatch(/^DELETE .*vaults\?user_id=eq\.u1$/);
+    await expect(btn).toHaveText("仅删除云端数据（保留账号）");
+  });
+
   test("推送接口被限流时给出明确提示", async ({ page }) => {
     await boot(page);
     await page.route(/functions\/v1\/push/, (r) => r.fulfill({ status: 429, contentType: "application/json", body: '{"error":"rate limited"}' }));
@@ -319,5 +339,76 @@ test.describe("布局", () => {
       const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);
       expect(sw, t).toBeLessThanOrEqual(iw);
     }
+  });
+});
+
+test.describe("情绪与原因的对应", () => {
+  test("选“很好 + 感恩”时只问让你感觉不错的原因，并按正面来源保存 @mobile", async ({ page }) => {
+    const errors = await boot(page);
+    await page.locator(".moods button").nth(4).click();
+    await page.locator("#emos .chip", { hasText: "感恩" }).click();
+    await expect(page.locator("#trigNegBox")).toBeHidden();
+    await expect(page.locator("#trigPosBox")).toBeVisible();
+    await expect(page.locator("#trigPosBox")).toContainText("是什么让你感觉不错");
+    await page.locator("#goods .chip", { hasText: "运动/户外" }).click();
+    await page.click("#save");
+    const e = await page.evaluate(() => entries[0]);
+    expect(e.trigs).toEqual([]);
+    expect(e.pos).toEqual(["运动/户外"]);
+    await expect(page.locator("#after")).toContainText("「运动/户外」让你感觉不错");
+    await expect(page.locator("#after")).not.toContainText("对你有影响");
+    await expect(page.locator(".entry .tag.g")).toHaveText("运动/户外");
+    expect(errors).toEqual([]);
+  });
+
+  test("选负面情绪时只问压力来源；两种都选时两组都显示", async ({ page }) => {
+    await boot(page);
+    await page.locator(".moods button").nth(1).click();
+    await expect(page.locator("#trigNegBox")).toBeVisible();
+    await expect(page.locator("#trigPosBox")).toBeHidden();
+    await page.locator("#emos .chip", { hasText: "焦虑" }).click();
+    await expect(page.locator("#trigPosBox")).toBeHidden();
+    await page.locator("#emos .chip", { hasText: "期待" }).click();
+    await expect(page.locator("#trigNegBox")).toBeVisible();
+    await expect(page.locator("#trigPosBox")).toBeVisible();
+  });
+
+  test("切换情绪后，被隐藏的那组原因不会被存进去", async ({ page }) => {
+    await boot(page);
+    await page.locator(".moods button").nth(1).click();
+    await page.locator("#emos .chip", { hasText: "焦虑" }).click();
+    await page.locator("#trigs .chip", { hasText: "学业/考试" }).click();
+    await page.locator("#emos .chip", { hasText: "焦虑" }).click();
+    await page.locator("#emos .chip", { hasText: "开心" }).click();
+    await expect(page.locator("#trigNegBox")).toBeHidden();
+    await page.click("#save");
+    const e = await page.evaluate(() => entries[0]);
+    expect(e.emos).toEqual(["开心"]);
+    expect(e.trigs).toEqual([]);
+  });
+
+  test("写作提示跟着心情变化", async ({ page }) => {
+    await boot(page);
+    const ph = () => page.locator("#note").getAttribute("placeholder");
+    await page.locator(".moods button").nth(4).click();
+    const high = await page.evaluate(() => PROMPTS.high);
+    expect(high).toContain(await ph());
+    await page.locator(".moods button").nth(0).click();
+    const low = await page.evaluate(() => PROMPTS.low);
+    expect(low).toContain(await ph());
+  });
+
+  test("示例数据里，情绪、原因、备注和心情彼此一致", async ({ page }) => {
+    await boot(page);
+    await tab(page, "insight");
+    await page.click("#demo");
+    const bad = await page.evaluate(() => entries.filter((e) => {
+      const neg = e.emos.some((x) => NEG.includes(x)), pos = e.emos.some((x) => !NEG.includes(x));
+      return (pos && e.trigs.length) || (neg && e.pos.length) || (pos && e.mood <= 2) || (neg && e.mood >= 4) ||
+        (/不错|轻松|终于/.test(e.note) && e.mood <= 2) || (/空白|飘|担心|慌/.test(e.note) && e.mood >= 4);
+    }).map((e) => e.note));
+    expect(bad).toEqual([]);
+    await expect(page.locator("#goodbars .bar").first()).toBeVisible();
+    await expect(page.locator("#trigbars .bar").first()).toBeVisible();
   });
 });
