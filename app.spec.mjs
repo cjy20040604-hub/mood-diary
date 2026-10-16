@@ -167,7 +167,7 @@ test.describe("安全：危机识别", () => {
 
 test.describe("AI 复盘", () => {
   async function setupAI(page) {
-    await page.evaluate(() => { localStorage.setItem("qy_ai", JSON.stringify({ base: "https://mock-ai.test/v1", model: "m", ok: true, okv: 2 })); memKey = "sk-test"; });
+    await page.evaluate(() => { localStorage.setItem("qy_ai", JSON.stringify({ base: "https://mock-ai.test/v1", model: "m", ok: true, okv: 2 })); memKey = "sk-test"; initAIUI(); });
   }
 
   test("本周有危机内容时，AI 复盘暂停且不发送任何文字", async ({ page }) => {
@@ -569,37 +569,6 @@ test.describe("存储：IndexedDB 与迁移", () => {
   });
 });
 
-test.describe("服务端 AI 复盘", () => {
-  test("默认经服务端生成复盘；没同意时不发送", async ({ page }) => {
-    await boot(page);
-    let body = null;
-    await page.route(/functions\/v1\/ai/, async (r) => { body = r.request().postDataJSON(); await r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ text: "这周辛苦了，先把睡眠排在前面。" }) }); });
-    await seed(page, [{ mood: 2, note: "考试周" }, { mood: 3, note: "还行" }, { mood: 4, note: "跑步了" }]);
-    await tab(page, "insight");
-    await page.click("#rpAI");
-    await expect(page.locator("#aiHint")).toContainText("勾选数据发送同意");
-    expect(body).toBe(null);
-    await tab(page, "me");
-    await page.check("#aiOk");
-    await tab(page, "insight");
-    await page.click("#rpAI");
-    await expect(page.locator("#aiOut")).toContainText("先把睡眠排在前面");
-    expect(body.stats.length).toBeGreaterThan(0);
-    expect(body.notes.join(" ")).toContain("考试周");
-  });
-
-  test("服务还没开通时给出明确提示，本地周报不受影响", async ({ page }) => {
-    await boot(page);
-    await page.route(/functions\/v1\/ai/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: '{"error":"not configured"}' }));
-    await page.evaluate(() => localStorage.setItem("qy_ai", JSON.stringify({ ok: true, okv: 2 })));
-    await seed(page, [{ mood: 2 }, { mood: 3 }, { mood: 4 }]);
-    await tab(page, "insight");
-    await page.click("#rpAI");
-    await expect(page.locator("#aiOut")).toContainText("还没有开通");
-    await expect(page.locator("#rpBody")).toContainText("小建议");
-  });
-});
-
 test.describe("云端恢复码与找回密码", () => {
   // 用内存模拟云端 vaults 表
   async function mockCloud(page) {
@@ -697,23 +666,60 @@ test.describe("云端恢复码与找回密码", () => {
   });
 });
 
-test("旧版的 AI 同意（只针对自己的接口）不会沿用到服务端转发", async ({ page }) => {
-  await boot(page);
-  let called = false;
-  await page.route(/functions\/v1\/ai/, (r) => { called = true; r.fulfill({ status: 200, contentType: "application/json", body: '{"text":"x"}' }); });
-  await page.evaluate(() => { localStorage.setItem("qy_ai", JSON.stringify({ ok: true })); initAIUI(); });
-  await seed(page, [{ mood: 2 }, { mood: 3 }, { mood: 4 }]);
-  await tab(page, "insight");
-  await page.click("#rpAI");
-  await expect(page.locator("#aiHint")).toContainText("勾选数据发送同意");
-  expect(called).toBe(false);
-  await tab(page, "me");
-  await expect(page.locator("#aiOk")).not.toBeChecked();
-});
-
 test("声音名称不带多余空格（推荐卡片与锁屏媒体信息）", async ({ page }) => {
   await boot(page);
   expect(await page.evaluate(() => Object.keys(SCENES).map(sceneName))).toEqual(["雨声", "海浪", "风声", "夜晚氛围", "白噪音"]);
   await tab(page, "care");
   await expect(page.locator("#recs .rec", { hasText: "音乐" }).locator("b")).toHaveText(/^\S/);
+});
+
+test.describe("AI 复盘只用你自己的接口", () => {
+  test("没填写自己的接口时不显示 AI 按钮，也不会发出任何请求", async ({ page }) => {
+    await boot(page);
+    const calls = [];
+    page.on("request", (r) => { if (/functions\/v1\/ai|chat\/completions/.test(r.url())) calls.push(r.url()); });
+    await seed(page, [{ mood: 2 }, { mood: 3 }, { mood: 4 }]);
+    await tab(page, "insight");
+    await expect(page.locator("#rpAI")).toBeHidden();
+    await expect(page.locator("#rpBody")).toContainText("小建议");
+    expect(calls).toEqual([]);
+  });
+
+  test("填写并保存自己的接口后出现按钮，同意后才发送", async ({ page }) => {
+    await boot(page);
+    let calls = 0;
+    await page.route("https://mock-ai.test/**", (r) => { calls++; r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ choices: [{ message: { content: "复盘内容" } }] }) }); });
+    await seed(page, [{ mood: 2 }, { mood: 3 }, { mood: 4 }]);
+    await tab(page, "me");
+    await page.fill("#aiBase", "https://mock-ai.test/v1");
+    await page.fill("#aiModel", "m");
+    await page.fill("#aiKey", "sk-mine");
+    await page.click("#aiSave");
+    await tab(page, "insight");
+    await expect(page.locator("#rpAI")).toBeVisible();
+    await page.click("#rpAI");
+    await expect(page.locator("#aiHint")).toContainText("勾选数据发送同意");
+    expect(calls).toBe(0);
+    await tab(page, "me");
+    await page.check("#aiOk");
+    await page.click("#aiSave");
+    await tab(page, "insight");
+    await page.click("#rpAI");
+    await expect(page.locator("#aiOut")).toContainText("复盘内容");
+    expect(calls).toBe(1);
+  });
+
+  test("旧版本留下的同意（没有版本号）不会被沿用", async ({ page }) => {
+    await boot(page);
+    let calls = 0;
+    await page.route("https://mock-ai.test/**", (r) => { calls++; r.fulfill({ status: 200, contentType: "application/json", body: "{}" }); });
+    await page.evaluate(() => { localStorage.setItem("qy_ai", JSON.stringify({ base: "https://mock-ai.test/v1", model: "m", ok: true })); memKey = "sk-old"; initAIUI(); });
+    await seed(page, [{ mood: 2 }, { mood: 3 }, { mood: 4 }]);
+    await tab(page, "insight");
+    await page.click("#rpAI");
+    await expect(page.locator("#aiHint")).toContainText("勾选数据发送同意");
+    expect(calls).toBe(0);
+    await tab(page, "me");
+    await expect(page.locator("#aiOk")).not.toBeChecked();
+  });
 });

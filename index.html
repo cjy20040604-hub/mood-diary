@@ -177,7 +177,7 @@ a{color:var(--accent)}
   <div class="card report"><h2>情绪周报</h2>
    <div class="row" id="rpTabs"><button class="ghost on" data-w="0">最近 7 天</button><button class="ghost" data-w="1">上一个 7 天</button></div>
    <div id="rpBody" style="margin-top:12px"></div>
-   <div class="row" style="margin-top:6px"><button class="ghost" id="rpCopy">复制周报</button><button class="ghost" id="rpAI">AI 个性化复盘</button></div>
+   <div class="row" style="margin-top:6px"><button class="ghost" id="rpCopy">复制周报</button><button class="ghost hide" id="rpAI">AI 个性化复盘</button></div>
    <div class="ai hide" id="aiOut"></div>
    <p class="sub" id="aiHint" style="margin-top:8px"></p>
   </div>
@@ -282,15 +282,13 @@ a{color:var(--accent)}
    <div class="row" style="margin-top:10px"><button class="ghost" id="syNow">立即同步</button><button class="ghost" id="syOff">断开并清除令牌</button></div>
    <p class="sub" id="syMsg" style="margin-top:8px"></p>
   </div>
-  <div class="card"><h2>AI 复盘</h2>
-   <p class="sub">周报默认由本地规则生成，不上传任何数据。点「AI 个性化复盘」时，本周统计和少量日记文字会经晴一的服务器转发给模型服务商生成复盘，服务器不保存这些内容。也可以改用你自己的模型接口（下面三项可选，密钥只保存在本浏览器）。</p>
-   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiOk"> 我同意把本周统计和部分日记文字（敏感个人信息）发送到 AI 服务生成复盘：默认经晴一服务器转发给模型服务商，填写了自己的接口时则直接发送到该接口。含有危机相关内容时不会发送。</label>
-   <details style="margin-top:8px"><summary>使用自己的模型接口（可选）</summary>
+  <div class="card"><h2>AI 复盘（可选）</h2>
+   <p class="sub">周报默认由本地规则生成，不上传任何数据。如果你有自己的大模型接口（OpenAI 兼容），可以填在这里，洞察页会出现「AI 个性化复盘」按钮。密钥只保存在本浏览器。</p>
    <label class="l" for="aiBase">接口地址</label><input type="text" id="aiBase" placeholder="https://api.openai.com/v1">
    <label class="l" for="aiModel">模型名</label><input type="text" id="aiModel" placeholder="例如 gpt-4o-mini">
    <label class="l" for="aiKey">API Key</label><input type="password" id="aiKey" autocomplete="new-password">
-   <button class="primary" id="aiSave">保存自己的接口</button>
-   </details>
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiOk"> 我同意把本周统计和部分日记文字（敏感个人信息）发送到上面填写的接口生成复盘。含有危机相关内容时不会发送。</label>
+   <button class="primary" id="aiSave">保存设置</button>
   </div>
   <div class="card"><h2>我的数据</h2>
    <p class="sub">记录默认只保存在这台设备的浏览器里。换设备或清除浏览器数据前，请先导出备份。你可以随时删除全部数据，删除即视为撤回同意。详见<a href="privacy.html">《隐私政策与使用条款》</a>。</p>
@@ -611,23 +609,14 @@ function renderReport(){const R=weekReport(rpW);lastReport=R;const b=$("#rpBody"
  if(R.kind){const r=RECS[R.kind],m=MEDS.find(x=>x.id===r.med);b.append(el("div",{class:"rec"},el("span",{class:"k",text:"推荐"}),el("div",{class:"x"},el("b",{text:m.title}),el("p",{text:"根据本周的"+KNAME[R.kind]+"为你选择"})),el("button",{class:"ghost",text:"去试试",onclick:()=>{goTab("care");Guide.start(m)}})))}
  document.querySelectorAll("#rpTabs button").forEach(x=>x.classList.toggle("on",+x.dataset.w===rpW));$("#aiOut").classList.add("hide")}
 document.querySelectorAll("#rpTabs button").forEach(b=>b.onclick=()=>{rpW=+b.dataset.w;renderReport()});
-async function aiViaServer(notes,out){
- try{const r=await fetch(SB+"/functions/v1/ai",{method:"POST",headers:{"Content-Type":"application/json",apikey:SBK,Authorization:"Bearer "+SBK},body:JSON.stringify({stats:lastReport.paras,notes:notes?notes.split("\n"):[]})});
-  const j=await r.json().catch(()=>({}));
-  if(r.status===503&&j.error==="not configured"){out.textContent="AI 复盘服务还没有开通。上方的本地周报不受影响。";$("#aiHint").textContent="";return}
-  if(r.status===429){out.textContent="今天请求有点多，请过一会儿再试。上方的本地周报不受影响。";return}
-  if(j.crisis){out.textContent="这一周的记录里有让人担心的内容，AI 复盘先暂停了。如果你有伤害自己的想法，请拨打心理援助热线 12356，或联系身边信任的人。";openSupport("risk");return}
-  if(!r.ok||!j.text)throw new Error(j.error||("状态 "+r.status));
-  out.textContent=j.text;$("#aiHint").textContent="以上由 AI 生成，仅供参考，不是诊断。"}
- catch(e){out.textContent="生成失败："+e.message+"。上方的本地周报不受影响。"}}
 $("#rpCopy").onclick=async()=>{const t="晴一日记 · 情绪周报\n"+lastReport.paras.join("\n");try{await navigator.clipboard.writeText(t);$("#rpCopy").textContent="已复制 ✓"}catch(e){const ta=el("textarea",{});ta.value=t;$("#rpBody").append(ta);ta.select();$("#rpCopy").textContent="请手动复制"}setTimeout(()=>$("#rpCopy").textContent="复制周报",2000)};
 $("#rpAI").onclick=async()=>{const cfg=getAI(),out=$("#aiOut"),btn=$("#rpAI");
+ if(!cfg.key){$("#aiHint").textContent="AI 复盘需要你自己的模型接口，可以在「设置 → AI 复盘」里填写。上方的本地周报不需要联网。";return}
  if(!cfg.ok){$("#aiHint").textContent="使用 AI 复盘前，请先到「设置 → AI 复盘」勾选数据发送同意。上方的本地周报不需要联网。";return}
  if(!lastReport.es.length){$("#aiHint").textContent="这段时间没有记录，没法复盘。";return}
  if(lastReport.es.some(e=>e.risk||isRisk(e.note))){out.classList.remove("hide");out.textContent="这一周的记录里有让人担心的内容，AI 复盘先暂停了，这些文字也不会发送出去。比起分析，现在更重要的是照顾好自己：如果你有伤害自己的想法，请拨打心理援助热线 12356，或联系身边信任的人。";$("#aiHint").textContent="";openSupport("risk");return}
  btn.disabled=true;btn.textContent="生成中…";out.classList.remove("hide");out.textContent="正在整理你这一周的情绪……";
  const notes=lastReport.es.filter(e=>e.note).slice(0,10).map(e=>`${fmt(e.t)} 心情${e.mood}/5 ${e.emos.join("、")}：${e.note.slice(0,80)}`).join("\n");
- if(!cfg.key){await aiViaServer(notes,out);btn.disabled=false;btn.textContent="AI 个性化复盘";return}
  try{const r=await fetch(cfg.base.replace(/\/$/,"")+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.key},body:JSON.stringify({model:cfg.model,temperature:.7,messages:[{role:"system",content:"你是温和、不说教的情绪陪伴者，不做医疗诊断。根据用户一周的情绪数据写一段 250 字以内的中文复盘：先共情，再指出 1–2 个规律，最后给 2 条具体、容易做到的小行动。不要使用列表符号，语气像朋友。不做诊断，不给药物或治疗建议。如果内容涉及自伤、自杀或其他危险，不要分析，只表达关心，并建议立即拨打心理援助热线 12356，有立即危险时拨打 120。"},{role:"user",content:"本地统计：\n"+lastReport.paras.join("\n")+"\n\n部分日记：\n"+(notes||"（无文字）")}]})});
   if(!r.ok)throw new Error("接口返回 "+r.status);const j=await r.json();out.textContent=j.choices[0].message.content.trim();$("#aiHint").textContent="以上由你配置的模型生成，仅供参考。"}
  catch(e){out.textContent="生成失败："+e.message+"。请检查接口地址、模型名和密钥，或确认该服务允许浏览器跨域访问。本地周报仍然可用。"}
@@ -669,9 +658,10 @@ function alertHtml(box){const risk=riskRecent(),low=lowAlertNeeded();box.classLi
 const AI_OKV=2;
 const getAI=()=>{const c=lsGet("qy_ai",{});return{base:c.base||"https://api.openai.com/v1",model:c.model||"",ok:!!c.ok&&c.okv>=AI_OKV,key:(secrets.ai&&secrets.ai.key)||memKey}};
 $("#aiOk").onchange=e=>{const c=lsGet("qy_ai",{});c.ok=e.target.checked;c.okv=AI_OKV;lsSet("qy_ai",c)};
-function initAIUI(){const c=lsGet("qy_ai",{});$("#aiBase").value=c.base||"";$("#aiModel").value=c.model||"";$("#aiOk").checked=getAI().ok;$("#aiKey").value=getAI().key}
+const aiBtnUI=()=>$("#rpAI").classList.toggle("hide",!getAI().key);
+function initAIUI(){const c=lsGet("qy_ai",{});$("#aiBase").value=c.base||"";$("#aiModel").value=c.model||"";$("#aiOk").checked=getAI().ok;$("#aiKey").value=getAI().key;aiBtnUI()}
 $("#aiSave").onclick=()=>{const base=$("#aiBase").value.trim()||"https://api.openai.com/v1",key=$("#aiKey").value.trim();lsSet("qy_ai",{base,model:$("#aiModel").value.trim(),ok:$("#aiOk").checked,okv:AI_OKV});memKey=key;
- if(vaultKey){if(key)secrets.ai={key};else delete secrets.ai;save();$("#meMsg").textContent="AI 设置已保存，密钥已加密存放在本机。"}else $("#meMsg").textContent="AI 设置已保存。未启用本机加密，密钥只在本次打开期间有效，不会写入磁盘。"};
+ if(vaultKey){if(key)secrets.ai={key};else delete secrets.ai;save();$("#meMsg").textContent="AI 设置已保存，密钥已加密存放在本机。";aiBtnUI()}else $("#meMsg").textContent="AI 设置已保存。未启用本机加密，密钥只在本次打开期间有效，不会写入磁盘。";aiBtnUI()};
 initAIUI();
 $("#exp").onclick=()=>{const u=URL.createObjectURL(new Blob([JSON.stringify({app:"qingyi",entries},null,1)],{type:"application/json"}));const a=el("a",{href:u,download:"qingyi-backup.json"});document.body.append(a);a.click();a.remove();$("#meMsg").textContent=`已导出 ${entries.length} 条记录。备份文件没有加密，请妥善保管。若浏览器没有下载，请改用普通浏览器标签打开本页再试。`};
 $("#impBtn").onclick=()=>$("#imp").click();
