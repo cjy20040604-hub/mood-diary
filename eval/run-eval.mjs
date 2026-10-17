@@ -19,9 +19,30 @@ const LABELS = { emos: [...EMOS], trigs: [...TRIGS], goods: [...GOODS] };
 
 const CI = process.argv.includes("--ci");
 const { cases } = JSON.parse(fs.readFileSync(path.join(dir, "cases.json"), "utf8"));
+const riskCases = JSON.parse(fs.readFileSync(path.join(dir, "risk-cases.json"), "utf8")).cases;
 const AI = !CI && process.env.AI_KEY && process.env.AI_MODEL
   ? { base: (process.env.AI_BASE || "https://api.openai.com/v1").replace(/\/$/, ""), key: process.env.AI_KEY, model: process.env.AI_MODEL }
   : null;
+
+// 日记危险信号检查：与页面相同，先关键词，没命中再问模型；模型出错就当作没识别出来
+async function riskEngine(engine, text) {
+  if (isRisk(text)) return { flag: true, by: "正则" };
+  if (engine !== "ai") return { flag: false };
+  const t0 = performance.now(), ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 10000);
+  try {
+    const r = await fetch(AI.base + "/chat/completions", { method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json", Authorization: "Bearer " + AI.key }, body: JSON.stringify(QL.riskBody(AI.model, text)) });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const p = QL.riskParse((await r.json())?.choices?.[0]?.message?.content);
+    return { flag: p.ok && p.risk, by: "模型", ms: performance.now() - t0, err: p.ok ? null : "格式不对" };
+  } catch (e) { return { flag: false, ms: performance.now() - t0, err: e.message }; } finally { clearTimeout(tm); }
+}
+async function runRisk(engine) {
+  const rows = [];
+  for (const c of riskCases) rows.push({ c, ...(await riskEngine(engine, c.text)) });
+  const pos = rows.filter((r) => r.c.risk), neg = rows.filter((r) => !r.c.risk);
+  return { engine, pos: pos.length, hit: pos.filter((r) => r.flag).length, neg: neg.length, fa: neg.filter((r) => r.flag).length,
+    fail: rows.filter((r) => r.err).length, rows };
+}
 
 async function callAI(text) {
   const t0 = performance.now();
@@ -181,11 +202,29 @@ function md(results) {
     L.push("| 用例 | 句子 | 问题 | 详情 |", "|---|---|---|---|");
     for (const e of s.errors) L.push(`| ${e.id} | ${e.text} | ${e.kind} | ${e.detail} |`);
   }
+  if (riskResults.length) {
+    const rn = (s) => (s.engine === "ai" ? "关键词 + AI" : "只用关键词");
+    L.push("", "## 日记危险信号检查", "", `用例 ${riskCases.length} 条（日记长度，危险 ${riskCases.filter((c) => c.risk).length} 条，容易误报的难例 ${riskCases.filter((c) => !c.risk).length} 条），提示词版本 \`${QL.RISK_PROMPT_V}\`。流程与页面相同：先关键词，没命中再问模型。`, "");
+    L.push("| 指标 | " + riskResults.map(rn).join(" | ") + " |", "|---|" + riskResults.map(() => "---|").join(""));
+    L.push("| 危险信号识别（硬性：全部识别） | " + riskResults.map((s) => (s.hit === s.pos ? "✅ " : "❌ ") + frac(s.hit, s.pos)).join(" | ") + " |");
+    L.push("| 难例误报（≤ 15%） | " + riskResults.map((s) => (s.fa / s.neg <= 0.15 ? "✅ " : "❌ ") + frac(s.fa, s.neg)).join(" | ") + " |");
+    L.push("| 接口失败 | " + riskResults.map((s) => (s.engine === "ai" ? String(s.fail) : "—")).join(" | ") + " |");
+    for (const s of riskResults) {
+      const bad = s.rows.filter((r) => r.flag !== r.c.risk);
+      L.push("", `### 错误明细：${rn(s)}（${bad.length} 处）`, "");
+      if (!bad.length) { L.push("无。"); continue; }
+      L.push("| 用例 | 类型 | 文字 | 问题 |", "|---|---|---|---|");
+      for (const r of bad) L.push(`| ${r.c.id} | ${r.c.tag} | ${r.c.text} | ${r.c.risk ? "⚠ 漏掉" : "误报（由" + r.by + "）"} |`);
+    }
+  }
   return L.join("\n") + "\n";
 }
 
 const results = [await runEngine("rule")];
+const riskResults = CI ? [] : [await runRisk("rule")];
+if (AI) riskResults.unshift(await runRisk("ai"));
 if (AI) results.unshift(await runEngine("ai"));
+for (const s of riskResults) console.log(`\n== 日记危险信号 · ${s.engine} ==  识别 ${s.hit}/${s.pos}  难例误报 ${s.fa}/${s.neg}  接口失败 ${s.fail}`);
 for (const s of results) {
   console.log(`\n== ${s.engine} ==`);
   for (const [label, ok, v] of gates(s)) console.log(`${ok ? "PASS" : "FAIL"}  ${label}  ${v}`);
