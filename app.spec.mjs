@@ -954,6 +954,14 @@ test("没有试用码的访客可以从设置页直接去意见反馈申请", as
   await expect(page.locator("#fbContact")).toBeFocused();
 });
 
+test("服务端 AI 全站每天最多 100 次，按北京时间自然日计数", async () => {
+  const fs = await import("node:fs");
+  const fn = fs.readFileSync("supabase-ai-function.ts", "utf8");
+  expect(fn).toMatch(/const LIMIT = \{[^}]*\ball: 100\b[^}]*\}/);
+  expect(fn).toContain(`allow("ai:all:" + d, LIMIT.all, DAY)`);
+  expect(fn).toContain("Date.now() + 8 * 3600e3");
+});
+
 test("服务端函数和 core.js 生成的提示词完全相同", async () => {
   const fs = await import("node:fs"), vm = await import("node:vm");
   const core = fs.readFileSync("core.js", "utf8"), fn = fs.readFileSync("supabase-ai-function.ts", "utf8");

@@ -22,8 +22,10 @@ const MODEL = Deno.env.get("AI_MODEL") || "qwen-plus-character";
 const SALT = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!.slice(-16);
 const MAX_BODY = 8192;
 const DAY = 86400;
-// 每天的次数上限：单台设备 30、单个 IP 60、单个试用码 150、全站 300（免费额度约 1400 次，够一轮试用）
-const LIMIT = { inst: 30, ip: 60, code: 150, all: 300 };
+// 每天的次数上限：单台设备 30、单个 IP 60；全站（含试用码）合计 100，控制免费额度的消耗
+const LIMIT = { inst: 30, ip: 60, all: 100 };
+// “每天”按北京时间的自然日计算，零点重置
+const today = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
 const TIMEOUT = 9000;
 
 // PROMPT-BEGIN
@@ -93,10 +95,10 @@ Deno.serve(async (req) => {
   const maxLen = action === "ql" ? 200 : 2000;
   if (text.length < 2 || text.length > maxLen) return json({ error: "text length" }, 400);
 
-  if (!(await allow("ai:inst:" + inst, LIMIT.inst, DAY))) return limited("install");
-  if (!(await allow("ai:ip:" + ipKey, LIMIT.ip, DAY))) return limited("ip");
-  if (!(await allow("ai:code:" + codeHash.slice(0, 32), LIMIT.code, DAY))) return limited("code");
-  if (!(await allow("ai:all", LIMIT.all, DAY))) return limited("all");
+  const d = today();
+  if (!(await allow("ai:inst:" + d + ":" + inst, LIMIT.inst, DAY))) return limited("install");
+  if (!(await allow("ai:ip:" + d + ":" + ipKey, LIMIT.ip, DAY))) return limited("ip");
+  if (!(await allow("ai:all:" + d, LIMIT.all, DAY))) return limited("all");
 
   const L = { emos: labelList(b.labels?.emos), trigs: labelList(b.labels?.trigs), goods: labelList(b.labels?.goods) };
   if (action === "ql" && (!L.emos || !L.trigs || !L.goods)) return json({ error: "labels" }, 400);
