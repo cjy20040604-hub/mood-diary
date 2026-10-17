@@ -129,3 +129,17 @@ grant execute on function public.forget_install(uuid) to anon, authenticated;
 select cron.schedule('qingyi-retention', '0 3 * * *', $$
   delete from public.metrics_daily where created_at < now() - interval '365 days';
   delete from public.feedback where created_at < now() - interval '365 days' $$);
+
+-- ===== AI 试用码（第 1 步：由产品方提供 AI，只开放给试用者）=====
+-- 只存试用码的 SHA-256 摘要（"code|" + 大写试用码），不存明文；停用某个码：update ... set active=false
+create table if not exists public.ai_codes (
+  code_hash text primary key,
+  note text,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+alter table public.ai_codes enable row level security;
+revoke all on public.ai_codes from anon, authenticated;
+-- 新增试用码示例（摘要在本地计算后填入，不要把明文试用码提交到仓库）：
+-- insert into public.ai_codes (code_hash, note) values ('<sha256 hex>', '第 4 周试用');
+-- 限流复用 push_rl / push_hit，键以 ai: 和 aichk: 开头，到期后自动重新计数

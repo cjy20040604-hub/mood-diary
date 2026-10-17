@@ -15,7 +15,6 @@ const isRisk=t=>!!t&&RISK_RE.some(r=>r.test(String(t)));
 
 /* ---------- 一句话记录 ---------- */
 const QL=(()=>{
- const PROMPT_V="ql-2";
  const MAX_PER_GROUP=3;
  const SLEEP_H=[4.5,5.5,6.5,7.5,8.5];
  const sleepBucket=h=>h<5?4.5:h<6?5.5:h<7?6.5:h<8?7.5:8.5;
@@ -83,9 +82,12 @@ const QL=(()=>{
   else if(pos)mood=sPos?5:4;
   return{ok:true,mood,emos:emos.slice(0,MAX_PER_GROUP),trigs,goods,sleep:sleepOf(t),risk:false,dropped:0}}
 
- /* --- AI 识别：一次调用，只做“读懂这句话、从已有标签里选” --- */
- function messages(text,labels){labels=labels||{};const L=k=>(labels[k]||{emos:EMOS,trigs:TRIGS,goods:GOODS}[k]).join("、");
-  return[{role:"system",content:`你是情绪日记应用里的“一句话记录”助手。用户会用一句话描述此刻的状态，你只负责把它整理成表单，不聊天、不安慰、不给建议，也不做任何诊断。
+ /* --- AI 的输入：标记之间的代码与 supabase-ai-function.ts 里的同名标记保持一致（测试会核对两边生成的提示词完全相同），
+        这样无论是用户自己的接口还是试用码走服务端，模型收到的提示词都相同 --- */
+ // PROMPT-BEGIN
+ const QL_PROMPT_V = "ql-2";
+ function qlMessages(text = "", L = { emos: "", trigs: "", goods: "" }) {
+  return [{ role: "system", content: `你是情绪日记应用里的“一句话记录”助手。用户会用一句话描述此刻的状态，你只负责把它整理成表单，不聊天、不安慰、不给建议，也不做任何诊断。
 只输出一个 JSON 对象，不要输出其他文字。格式：
 {"mood":1到5的整数或null,"emotions":[],"stress":[],"good":[],"sleep_hours":数字或null,"risk":true或false}
 规则：
@@ -93,10 +95,25 @@ const QL=(()=>{
 2. emotions 只能从【情绪】里选，stress 只能从【压力来源】里选，good 只能从【让人变好的事】里选。必须原样照抄，每组最多 3 个。没有明确依据就留空数组，宁可少选，不要乱选。good 只选用户自己身上真实发生的好事，比如别人帮了用户，不算“帮助了别人”。
 3. 只有用户说了睡了多久，才填 sleep_hours，单位小时；“通宵”填 0。
 4. 只要有任何自伤、自杀、不想活、想消失、觉得自己是别人的负担之类的意思，包括隐晦的说法，risk 就填 true。“笑死”“累死了”“想死你了”这类口头禅不算。
-【情绪】${L("emos")}
-【压力来源】${L("trigs")}
-【让人变好的事】${L("goods")}`},{role:"user",content:"用户的话：「"+String(text).slice(0,200)+"」"}]}
+【情绪】${L.emos}
+【压力来源】${L.trigs}
+【让人变好的事】${L.goods}` }, { role: "user", content: "用户的话：「" + String(text).slice(0, 200) + "」" }];
+ }
+ const RISK_PROMPT_V = "risk-1";
+ function riskMessages(text = "") {
+  return [{ role: "system", content: `你是情绪日记应用里的安全检查助手。用户刚写下一段日记，你只判断其中有没有危险信号，不聊天、不分析、不给建议。
+只输出一个 JSON 对象，不要输出其他文字：{"risk":true或false}
+只要文字里有任何自伤、自杀、不想活、想消失、想永远睡着、觉得自己是别人的负担、在交代后事之类的意思，包括隐晦的说法，risk 就填 true。
+以下情况填 false：“笑死”“累死了”“想死你了”这类口头禅；只是难过、委屈、疲惫、压力大，但没有伤害自己的意思；转述新闻、影视剧或别人的事，且没有联系到自己。` }, { role: "user", content: "用户写下的文字：「" + String(text).slice(0, 2000) + "」" }];
+ }
+ // PROMPT-END
+ const joinLabels=labels=>{labels=labels||{};const L=k=>(labels[k]||{emos:EMOS,trigs:TRIGS,goods:GOODS}[k]).join("、");return{emos:L("emos"),trigs:L("trigs"),goods:L("goods")}};
+ const messages=(text,labels)=>qlMessages(text,joinLabels(labels));
  const body=(model,text,labels)=>({model,temperature:0,max_tokens:200,messages:messages(text,labels)});
+ const riskBody=(model,text)=>({model,temperature:0,max_tokens:20,messages:riskMessages(text)});
+ // 危险信号检查的输出：格式不对就当作“没有判断”，由关键词规则兜底
+ function riskParse(content){const s=String(content||""),a=s.indexOf("{"),b=s.lastIndexOf("}");if(a<0||b<=a)return{ok:false};
+  try{const j=JSON.parse(s.slice(a,b+1));return typeof j.risk==="boolean"?{ok:true,risk:j.risk}:{ok:false}}catch(e){return{ok:false}}}
 
  /* --- 校验模型输出：格式不对就判失败；不在标签表里的一律丢弃，并记下丢了几个 --- */
  function parse(content,labels){labels=labels||{};
@@ -116,4 +133,4 @@ const QL=(()=>{
  function diff(sug,fin){const sd=(a,b)=>a.filter(x=>!b.includes(x)).length+b.filter(x=>!a.includes(x)).length;
   return(sug.mood&&sug.mood!==fin.mood?1:0)+sd(sug.emos,fin.emos)+sd(sug.trigs,fin.trigs)+sd(sug.goods,fin.goods)}
 
- return{PROMPT_V,SLEEP_H,sides,consistent,rules,messages,body,parse,diff}})();
+ return{PROMPT_V:QL_PROMPT_V,RISK_PROMPT_V,SLEEP_H,joinLabels,riskMessages,riskBody,riskParse,sides,consistent,rules,messages,body,parse,diff}})();

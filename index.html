@@ -136,6 +136,7 @@ a{color:var(--accent)}
 .ql-row{flex-wrap:nowrap}.ql-row input{flex:1;min-width:0}.ql-row button{flex:none}
 .ql .alert{margin:10px 0 0}
 .ql .alert.calm{background:var(--card);border:1px solid var(--line);color:var(--fg)}
+.aih{font-size:15px;margin:16px 0 4px}
 </style>
 </head>
 <body>
@@ -299,11 +300,19 @@ a{color:var(--accent)}
    <p class="sub" id="syMsg" style="margin-top:8px"></p>
   </div>
   <div class="card"><h2>AI 功能（可选）</h2>
-   <p class="sub">默认全部由本地规则完成，不上传任何数据。如果你有自己的大模型接口（OpenAI 兼容，例如阿里云百炼、DeepSeek），可以填在这里，开启两项 AI 功能：「一句话记录」改用 AI 识别心情和原因；洞察页出现「AI 个性化复盘」。密钥只保存在本浏览器。</p>
+   <p class="sub">默认全部由本机规则完成，不上传任何数据。开启 AI 后，「一句话记录」改用 AI 识别心情和原因；你还可以选择让 AI 在保存日记时帮你留意危险信号。</p>
+   <h3 class="aih">方式一：试用码（推荐）</h3>
+   <p class="sub">参加试用的朋友会收到一个试用码。使用试用码时，文字经 Supabase（爱尔兰）转发到阿里云百炼（新加坡）的通义千问模型，服务器不保存这些文字。每台设备每天最多 30 次。</p>
+   <label class="l" for="aiCode">试用码</label><div class="row ql-row"><input type="text" id="aiCode" autocomplete="off" maxlength="32" placeholder="例如 QY-XXXXXXXX"><button class="ghost" id="aiCodeGo">验证并使用</button></div>
+   <p class="sub" id="aiMsg" aria-live="polite" style="margin:6px 0 0"></p>
+   <p class="sub" style="margin:6px 0 0">还没有试用码？试用码由晴一日记试用计划发放，想参加可以<button class="linkbtn" id="aiApply">在「意见反馈」里留下联系方式</button>。</p>
+   <h3 class="aih">方式二：你自己的模型接口</h3>
+   <p class="sub">OpenAI 兼容接口，例如阿里云百炼、DeepSeek。填写后，洞察页还会出现「AI 个性化复盘」。密钥只保存在本浏览器。两种方式都设置时，优先用你自己的接口。</p>
    <label class="l" for="aiBase">接口地址</label><input type="text" id="aiBase" placeholder="https://api.openai.com/v1">
    <label class="l" for="aiModel">模型名</label><input type="text" id="aiModel" placeholder="例如 gpt-4o-mini">
    <label class="l" for="aiKey">API Key</label><input type="password" id="aiKey" autocomplete="new-password">
-   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiOk"> 我同意把我在「一句话记录」里输入的文字，以及复盘时的本周统计和部分日记文字（敏感个人信息）发送到上面填写的接口。含有危机相关内容时不会发送。</label>
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiOk"> 我同意把我在「一句话记录」里输入的文字，以及使用 AI 复盘时的本周统计和部分日记文字（敏感个人信息）发送给 AI：用试用码时经 Supabase（爱尔兰）转发到阿里云百炼（新加坡）；用自己的接口时直接发送到该接口。含有危机相关内容时不会发送。</label>
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiRiskOk"> 保存日记和想法整理时，也请 AI 帮我留意危险信号。开启后，每次保存都会把这段文字发送给 AI 判断（不保存），判断有风险时会给出求助方式。默认关闭；关键词检查始终开启，不受影响。</label>
    <button class="primary" id="aiSave">保存设置</button>
   </div>
   <div class="card"><h2>我的使用情况（近 7 天）</h2>
@@ -612,11 +621,12 @@ $("#save").onclick=()=>{
  if(!old&&qlSug)e.ql={s:qlSug.src,fix:QL.diff(qlSug,{mood:e.mood,emos:e.emos,trigs:e.trigs,goods:e.pos})};
  qlDone();
  if(!old){entries.unshift(e);if(typeof pushDone==="function")pushDone()}save();editingId=null;editUI();
- const k=kindOf(e),a=$("#after");a.hidden=false;a.innerHTML="";
+ const k=kindOf(e),a=$("#after");a.hidden=false;a.innerHTML="";a.dataset.id=e.id;
  if(e.risk){a.append(el("h2",{text:old?"已保存修改":"已记录"}),el("p",{style:"margin:0 0 8px",text:"谢谢你愿意写下来。你不需要一个人扛着，现在就可以找人说说。"}),el("div",{class:"row"},el("b",{text:"心理援助热线 12356"}),el("button",{class:"ghost",text:"查看求助方式",onclick:()=>openSupport("risk")})));openSupport("risk")}
  else a.append(el("h2",{text:old?"已保存修改 ✓":"已记录 ✓"}),el("p",{style:"margin:0 0 4px",text:(e.mood<=2?"听起来今天不太容易。":"谢谢你记下这一刻。")+(e.trigs.length?`看起来「${e.trigs[0]}」对你有影响。`:e.pos.length?`「${e.pos[0]}」让你感觉不错，值得多留一点时间给它。`:"")+(e.mood>=4?"想延续这份好状态，可以试试：":"试试下面一个小练习：")}),recsFor(k)[0]);
  if(!old){const rn=entries.filter(x=>!x.demo).length;if(rn<3)a.append(el("p",{class:"sub",style:"margin-top:8px",text:`再记 ${3-rn} 条，「洞察」里会出现你的第一份发现。`}));else if(rn===3)a.append(el("div",{class:"row",style:"margin-top:8px"},el("span",{class:"sub",text:"你的第一份发现已经生成。"}),el("button",{class:"ghost",text:"去看看",onclick:()=>goTab("insight")})))}
- S.mood=0;S.emos.clear();S.trigs.clear();S.goods.clear();S.sleep=null;$("#note").value="";document.querySelectorAll(".chip:not([role=radio]),.moods button").forEach(b=>b.setAttribute("aria-pressed","false"));syncReasons();renderCustom("trigs");renderCustom("goods");renderSleep();render()};
+ S.mood=0;S.emos.clear();S.trigs.clear();S.goods.clear();S.sleep=null;$("#note").value="";document.querySelectorAll(".chip:not([role=radio]),.moods button").forEach(b=>b.setAttribute("aria-pressed","false"));syncReasons();renderCustom("trigs");renderCustom("goods");renderSleep();render();
+ aiNoteCheck(e,e.note)};
 $("#filter").onchange=()=>{shown=6;renderList()};
 $("#search").oninput=()=>{shown=6;renderList()};
 $("#more").onclick=()=>{shown+=10;renderList()};
@@ -727,31 +737,59 @@ function alertHtml(box){const risk=riskRecent(),low=lowAlertNeeded();box.classLi
  box.append(el("span",{text:risk?"最近的记录里有让人担心的内容。你的感受很重要，请不要一个人扛。":"最近几天你的心情一直偏低。这很不容易，也不是你的错。可以先试一个小练习，或者找信任的人聊聊。"}),el("div",{class:"row",style:"margin-top:8px"},el("b",{text:"心理援助热线 12356"}),el("button",{class:"ghost",text:"更多求助方式",onclick:()=>openSupport(risk?"risk":"help")})))}
 
 /* ---------- 设置与数据 ---------- */
-// AI 同意带版本号：用途变化时升级，旧版的同意不能沿用（v3 新增「一句话记录」）
-const AI_OKV=3;
-const getAI=()=>{const c=lsGet("qy_ai",{});return{base:c.base||"https://api.openai.com/v1",model:c.model||"",ok:!!c.ok&&c.okv>=AI_OKV,key:(secrets.ai&&secrets.ai.key)||memKey}};
-$("#aiOk").onchange=e=>{const c=lsGet("qy_ai",{});c.ok=e.target.checked;c.okv=AI_OKV;lsSet("qy_ai",c);qlSrcUI()};
+// AI 同意带版本号：用途或数据去向变化时升级，旧版的同意不能沿用（v3 新增一句话记录，v4 新增试用码经服务端转发）
+const AI_OKV=4,RISK_OKV=1;
+const getAI=()=>{const c=lsGet("qy_ai",{}),ok=!!c.ok&&c.okv>=AI_OKV;return{base:c.base||"https://api.openai.com/v1",model:c.model||"",ok,key:(secrets.ai&&secrets.ai.key)||memKey,code:c.code||"",riskOk:ok&&!!c.risk&&c.rv>=RISK_OKV}};
+const setAI=f=>{const c=lsGet("qy_ai",{});f(c);lsSet("qy_ai",c)};
+$("#aiOk").onchange=e=>{setAI(c=>{c.ok=e.target.checked;c.okv=AI_OKV});qlSrcUI()};
+$("#aiRiskOk").onchange=e=>{setAI(c=>{c.risk=e.target.checked;c.rv=RISK_OKV});$("#aiMsg").textContent=e.target.checked&&!getAI().ok?"还需要勾选上面的数据发送同意，危险信号检查才会生效。":""};
 const aiBtnUI=()=>{$("#rpAI").classList.toggle("hide",!getAI().key);qlSrcUI()};
-function initAIUI(){const c=lsGet("qy_ai",{});$("#aiBase").value=c.base||"";$("#aiModel").value=c.model||"";$("#aiOk").checked=getAI().ok;$("#aiKey").value=getAI().key;aiBtnUI()}
-$("#aiSave").onclick=()=>{const base=$("#aiBase").value.trim()||"https://api.openai.com/v1",key=$("#aiKey").value.trim();lsSet("qy_ai",{base,model:$("#aiModel").value.trim(),ok:$("#aiOk").checked,okv:AI_OKV});memKey=key;
+function initAIUI(){const c=lsGet("qy_ai",{});$("#aiBase").value=c.base||"";$("#aiModel").value=c.model||"";$("#aiOk").checked=getAI().ok;$("#aiRiskOk").checked=!!c.risk&&c.rv>=RISK_OKV;$("#aiKey").value=getAI().key;$("#aiCode").value=c.code||"";aiBtnUI()}
+$("#aiSave").onclick=()=>{const base=$("#aiBase").value.trim()||"https://api.openai.com/v1",key=$("#aiKey").value.trim();setAI(c=>{c.base=base;c.model=$("#aiModel").value.trim();c.ok=$("#aiOk").checked;c.okv=AI_OKV;c.risk=$("#aiRiskOk").checked;c.rv=RISK_OKV});memKey=key;
  if(vaultKey){if(key)secrets.ai={key};else delete secrets.ai;save();$("#meMsg").textContent="AI 设置已保存，密钥已加密存放在本机。";aiBtnUI()}else $("#meMsg").textContent="AI 设置已保存。未启用本机加密，密钥只在本次打开期间有效，不会写入磁盘。";aiBtnUI()};
 /* ---------- 一句话记录：固定步骤的工作流，模型只负责第 ② 步 ----------
    ① 危机检查（本机规则）→ ② 识别（你配置的 AI；没配置、失败或超时就用本机规则）→ ③ 模型判断有风险则停止
    → ④ 校验与方向一致（core.js）→ ⑤ 预填表单，用户确认后才保存，并记下改了几处 */
 let qlSug=null,qlPrev=null,qlRiskText="";
 const QL_TIMEOUT=10000;
-const qlAI=()=>{const c=getAI();return c.key&&c.ok&&c.model?c:null};
-function qlSrcUI(){const c=getAI();$("#qlSrc").textContent=qlAI()?"由你配置的 AI 模型识别。发送前会先在本机做危机检查，识别结果需要你确认后才保存。"
- :c.key&&!c.ok?"当前由本机规则识别，不联网。到「设置 → AI 功能」勾选同意后，可改用 AI 识别。"
- :"当前由本机规则识别，不联网。在「设置 → AI 功能」填写你自己的模型接口后，可改用 AI 识别。"}
+// 用哪种 AI：同意之后，优先用户自己的接口，其次试用码；都没有就返回 null（用本机规则）
+const aiProvider=()=>{const c=getAI();if(!c.ok)return null;if(c.key&&c.model)return{kind:"own",c};if(c.code)return{kind:"trial",c};return null};
+const qlAI=aiProvider;
+function aiInstall(){const p=prefs0();if(!p.aiInst){p.aiInst=crypto.randomUUID();savePrefs(p)}return p.aiInst}
+const TRIAL_ERR={401:"试用码无效或已停用",429:"今天的 AI 次数用完了，明天再来",503:"AI 服务暂未开启"};
+async function trialCall(body,ms){const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),ms||QL_TIMEOUT);
+ try{const r=await fetch(SB+"/functions/v1/ai",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",apikey:SBK,Authorization:"Bearer "+SBK},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(TRIAL_ERR[r.status]||("服务返回 "+r.status));return j}
+ catch(e){throw new Error(e.name==="AbortError"?"超时":e.message)}finally{clearTimeout(tm)}}
+// 返回模型的原始文字；解析和校验由 core.js 完成，两种方式走同一套校验
+async function aiCall(action,text,labels){const p=aiProvider();if(!p)throw new Error("AI 未开启");
+ if(p.kind==="trial"){const j=await trialCall({action,code:p.c.code,install:aiInstall(),text,labels});return j.content}
+ const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),QL_TIMEOUT);
+ try{const r=await fetch(p.c.base.replace(/\/$/,"")+"/chat/completions",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Authorization:"Bearer "+p.c.key},body:JSON.stringify(action==="ql"?QL.body(p.c.model,text,labels):QL.riskBody(p.c.model,text))});
+  if(!r.ok)throw new Error("接口返回 "+r.status);const j=await r.json();return j&&j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content}
+ catch(e){throw new Error(e.name==="AbortError"?"超时":e.message)}finally{clearTimeout(tm)}}
+function qlSrcUI(){const c=getAI(),p=aiProvider();$("#qlSrc").textContent=p?(p.kind==="trial"?"由 AI 识别（试用码）。":"由你配置的 AI 模型识别。")+"发送前会先在本机做危机检查，识别结果需要你确认后才保存。"
+ :(c.key||c.code)&&!c.ok?"当前由本机规则识别，不联网。到「设置 → AI 功能」勾选同意后，可改用 AI 识别。"
+ :"当前由本机规则识别，不联网。在「设置 → AI 功能」填写试用码（可在「意见反馈」里申请）或你自己的模型接口后，可改用 AI 识别。"}
+/* 保存日记或想法整理之后的危险信号检查：只在用户单独开启时进行；不拖慢保存，出错就算了，关键词检查始终兜底 */
+async function aiNoteCheck(obj,text){if(obj.risk||!getAI().riskOk||!aiProvider())return;text=String(text||"").trim();if(text.length<4)return;
+ let r;try{r=QL.riskParse(await aiCall("risk",text))}catch(e){return}if(!r.ok||!r.risk)return;
+ obj.risk=true;obj.rk="ai";save();render();
+ const a=$("#after");if(!a.hidden&&a.dataset.id===obj.id){a.innerHTML="";a.append(el("h2",{text:"已记录"}),el("p",{style:"margin:0 0 8px",text:"谢谢你愿意写下来。你不需要一个人扛着，现在就可以找人说说。"}),el("div",{class:"row"},el("b",{text:"心理援助热线 12356"}),el("button",{class:"ghost",text:"查看求助方式",onclick:()=>openSupport("risk")})))}
+ openSupport("risk")}
+// 申请试用：跳到意见反馈，预填一句申请，联系方式由用户自己填写
+$("#aiApply").onclick=()=>{const b=$("#fbBody");if(!b.value.trim())b.value="我想参加晴一日记的试用，申请一个 AI 试用码。";b.scrollIntoView({block:"center"});$("#fbContact").focus()};
+$("#aiCodeGo").onclick=async()=>{const code=$("#aiCode").value.trim().toUpperCase(),m=$("#aiMsg"),b=$("#aiCodeGo");
+ if(!code){setAI(c=>{delete c.code});m.textContent="已停用试用码。";qlSrcUI();return}
+ b.disabled=true;m.textContent="正在验证…";
+ try{await trialCall({action:"check",code});setAI(c=>{c.code=code});$("#aiCode").value=code;
+  m.textContent=getAI().ok?"试用码有效，AI 已开启。也可以考虑开启下面的“保存日记时留意危险信号”。":"试用码有效。请勾选下面的数据发送同意并保存，AI 才会开启。也可以考虑开启“保存日记时留意危险信号”。"}
+ catch(e){m.textContent="验证失败："+e.message+"。"}
+ b.disabled=false;qlSrcUI()};
 function qlMsg(nodes,warn){const m=$("#qlMsg");m.innerHTML="";m.classList.toggle("hide",!nodes);m.classList.toggle("calm",!warn);if(nodes)m.append(...[].concat(nodes))}
 function qlDone(){qlSug=null;qlPrev=null;qlRiskText="";$("#qlIn").value="";qlMsg(null)}
 const qlLabels=()=>({emos:EMOS,trigs:[...TRIGS,...customOf("trigs")],goods:[...GOODS,...customOf("goods")]});
-async function qlCallAI(cfg,text,labels){const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),QL_TIMEOUT);
- try{const r=await fetch(cfg.base.replace(/\/$/,"")+"/chat/completions",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.key},body:JSON.stringify(QL.body(cfg.model,text,labels))});
-  if(!r.ok)throw new Error("接口返回 "+r.status);const j=await r.json(),c=j&&j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;
-  const p=QL.parse(c,labels);if(!p.ok)throw new Error(p.error);return p}
- catch(e){throw new Error(e.name==="AbortError"?"超时":e.message)}finally{clearTimeout(tm)}}
+async function qlCallAI(text,labels){const p=QL.parse(await aiCall("ql",text,labels),labels);if(!p.ok)throw new Error(p.error);return p}
 function qlFill(r,text){qlPrev={mood:S.mood,emos:[...S.emos],trigs:[...S.trigs],goods:[...S.goods],sleep:S.sleep,note:$("#note").value};
  if(r.mood){S.mood=r.mood;[...$("#moods").children].forEach((c,i)=>c.setAttribute("aria-pressed",i===r.mood-1))}
  setChips("#emos",S.emos,r.emos);setChips("#trigs",S.trigs,r.trigs);setChips("#goods",S.goods,r.goods);if(r.sleep)S.sleep=r.sleep;
@@ -769,7 +807,7 @@ async function qlRun(){const text=$("#qlIn").value.trim(),btn=$("#qlGo");if(lock
  const labels=qlLabels(),cfg=qlAI();let r=null,src="rule",note="";
  // ② 识别：优先用 AI，任何失败都退回本机规则，功能不会因为接口出错而不可用
  if(cfg){btn.disabled=true;btn.textContent="识别中…";
-  try{r=await qlCallAI(cfg,text,labels);src="ai"}catch(e){note="AI 暂时不可用（"+e.message+"），已改用本机规则识别。"}
+  try{r=await qlCallAI(text,labels);src="ai"}catch(e){note="AI 暂时不可用（"+e.message+"），已改用本机规则识别。"}
   btn.disabled=false;btn.textContent="帮我填好"}
  if(!r)r=QL.rules(text,labels);
  // ③ 模型从语义上判断有风险：同样停止
@@ -1011,7 +1049,7 @@ const dsel=new Set();DIST.forEach(x=>$("#cbtD").append(el("button",{class:"chip"
 $("#cbtB").oninput=e=>$("#cbtBo").textContent=e.target.value;$("#cbtA").oninput=e=>$("#cbtAo").textContent=e.target.value;
 $("#cbtOpen").onclick=()=>$("#cbtForm").classList.toggle("hide");
 $("#cbtSave").onclick=()=>{const th=$("#cbtThought").value.trim();if(!th){$("#cbtThought").focus();return}
- const tt={id:"t"+Date.now()+Math.random().toString(36).slice(2,5),t:Date.now(),sit:$("#cbtSit").value.trim(),th,b:+$("#cbtB").value,d:[...dsel],alt:$("#cbtAlt").value.trim(),bal:$("#cbtBal").value.trim(),a:+$("#cbtA").value};if(isRisk([tt.sit,tt.th,tt.alt,tt.bal].join(" ")))tt.risk=true;thoughts.unshift(tt);save();if(tt.risk)openSupport("risk");
+ const tt={id:"t"+Date.now()+Math.random().toString(36).slice(2,5),t:Date.now(),sit:$("#cbtSit").value.trim(),th,b:+$("#cbtB").value,d:[...dsel],alt:$("#cbtAlt").value.trim(),bal:$("#cbtBal").value.trim(),a:+$("#cbtA").value};if(isRisk([tt.sit,tt.th,tt.alt,tt.bal].join(" ")))tt.risk=true;thoughts.unshift(tt);save();if(tt.risk)openSupport("risk");else aiNoteCheck(tt,[tt.sit,tt.th,tt.alt,tt.bal].join(" "));
  ["#cbtSit","#cbtThought","#cbtAlt","#cbtBal"].forEach(s=>$(s).value="");dsel.clear();document.querySelectorAll("#cbtD .chip").forEach(c=>c.setAttribute("aria-pressed","false"));$("#cbtForm").classList.add("hide");render()};
 function renderCBT(){const b=$("#cbtList");b.innerHTML="";if(!thoughts.length){return}
  const tot=thoughts.reduce((a,x)=>a+(x.b-x.a),0)/thoughts.length;b.append(el("p",{class:"sub",text:`已整理 ${thoughts.length} 条，难受程度平均变化 ${tot>0?"降低":"上升"} ${Math.abs(tot).toFixed(0)} 点`}));
