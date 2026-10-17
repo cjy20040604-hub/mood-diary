@@ -167,7 +167,7 @@ test.describe("安全：危机识别", () => {
 
 test.describe("AI 复盘", () => {
   async function setupAI(page) {
-    await page.evaluate(() => { localStorage.setItem("qy_ai", JSON.stringify({ base: "https://mock-ai.test/v1", model: "m", ok: true, okv: 2 })); memKey = "sk-test"; initAIUI(); });
+    await page.evaluate(() => { localStorage.setItem("qy_ai", JSON.stringify({ base: "https://mock-ai.test/v1", model: "m", ok: true, okv: 3 })); memKey = "sk-test"; initAIUI(); });
   }
 
   test("本周有危机内容时，AI 复盘暂停且不发送任何文字", async ({ page }) => {
@@ -671,6 +671,143 @@ test("声音名称不带多余空格（推荐卡片与锁屏媒体信息）", as
   expect(await page.evaluate(() => Object.keys(SCENES).map(sceneName))).toEqual(["雨声", "海浪", "风声", "夜晚氛围", "白噪音"]);
   await tab(page, "care");
   await expect(page.locator("#recs .rec", { hasText: "音乐" }).locator("b")).toHaveText(/^\S/);
+});
+
+test.describe("一句话记录", () => {
+  const chip = (page, box, t) => page.locator(box + " .chip", { hasText: t }).first();
+  async function useAI(page, okv = 3) {
+    await page.evaluate((okv) => { localStorage.setItem("qy_ai", JSON.stringify({ base: "https://mock-ai.test/v1", model: "m", ok: true, okv })); memKey = "sk-test"; initAIUI(); }, okv);
+  }
+  const aiReply = (obj) => ({ status: 200, contentType: "application/json", body: JSON.stringify({ choices: [{ message: { content: typeof obj === "string" ? obj : JSON.stringify(obj) } }] }) });
+
+  test("没配置 AI 时用本机规则预填，不联网；确认保存后记下没有改动 @mobile", async ({ page }) => {
+    const errors = await boot(page);
+    const calls = [];
+    page.on("request", (r) => { if (/chat\/completions/.test(r.url())) calls.push(r.url()); });
+    await expect(page.locator("#qlSrc")).toContainText("本机规则识别");
+    await page.fill("#qlIn", "明天考试好紧张，昨晚只睡了5小时");
+    await page.click("#qlGo");
+    await expect(page.locator("#qlMsg")).toContainText("本机规则识别");
+    await expect(page.locator("#moods button").nth(1)).toHaveAttribute("aria-pressed", "true");
+    await expect(chip(page, "#emos", "焦虑")).toHaveAttribute("aria-pressed", "true");
+    await expect(chip(page, "#trigs", "学业/考试")).toHaveAttribute("aria-pressed", "true");
+    await expect(chip(page, "#trigs", "睡眠不足")).toHaveAttribute("aria-pressed", "true");
+    await expect(chip(page, "#sleepChips", "5–6 小时")).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator("#note")).toHaveValue("明天考试好紧张，昨晚只睡了5小时");
+    await page.click("#save");
+    expect(await page.evaluate(() => entries[0].ql)).toEqual({ s: "rule", fix: 0 });
+    await expect(page.locator("#qlIn")).toHaveValue("");
+    await expect(page.locator("#qlMsg")).toBeHidden();
+    expect(calls).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  test("用户改了预填结果，保存时记下改了几处；撤销能恢复原样", async ({ page }) => {
+    await boot(page);
+    await page.fill("#qlIn", "和室友吵架了，很烦");
+    await page.click("#qlGo");
+    await expect(chip(page, "#emos", "烦躁")).toHaveAttribute("aria-pressed", "true");
+    await page.click("#qlUndo");
+    await expect(chip(page, "#emos", "烦躁")).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("#note")).toHaveValue("");
+    expect(await page.evaluate(() => S.mood)).toBe(0);
+    await page.click("#qlGo");
+    await chip(page, "#emos", "委屈").click();
+    await chip(page, "#trigs", "人际社交").click();
+    await page.click("#save");
+    expect(await page.evaluate(() => entries[0].ql)).toEqual({ s: "rule", fix: 2 });
+  });
+
+  test("危机表达：不识别、不发送，直接给出求助方式", async ({ page }) => {
+    await boot(page);
+    let calls = 0;
+    await page.route("https://mock-ai.test/**", (r) => { calls++; r.fulfill(aiReply({ mood: 1 })); });
+    await useAI(page);
+    await page.fill("#qlIn", "真的不想活了");
+    await page.click("#qlGo");
+    await expect(page.locator("#support")).toBeVisible();
+    await expect(page.locator("#supTitle")).toHaveText("你现在安全吗？");
+    await page.click("#supOk");
+    await expect(page.locator("#qlMsg")).toContainText("12356");
+    expect(await page.evaluate(() => ({ m: S.mood, e: S.emos.size, n: $("#note").value }))).toEqual({ m: 0, e: 0, n: "" });
+    expect(calls).toBe(0);
+  });
+
+  test("AI 模式：只能从已有标签里选，无效标签被丢弃，结果由用户确认", async ({ page }) => {
+    await boot(page);
+    let body = null;
+    await page.route("https://mock-ai.test/**", async (r) => {
+      body = r.request().postDataJSON();
+      await r.fulfill(aiReply("```json\n" + JSON.stringify({ mood: 2, emotions: ["焦虑", "难过"], stress: ["学业/考试", "导师"], good: [], sleep_hours: null, risk: false }) + "\n```"));
+    });
+    await useAI(page);
+    await expect(page.locator("#qlSrc")).toContainText("AI 模型识别");
+    await page.fill("#qlIn", "组会被点名，脑子一片空白");
+    await page.click("#qlGo");
+    await expect(page.locator("#qlMsg")).toContainText("AI 识别");
+    await expect(chip(page, "#emos", "焦虑")).toHaveAttribute("aria-pressed", "true");
+    await expect(chip(page, "#trigs", "学业/考试")).toHaveAttribute("aria-pressed", "true");
+    expect(await page.evaluate(() => [...S.emos, ...S.trigs])).toEqual(["焦虑", "学业/考试"]);
+    expect(body.temperature).toBe(0);
+    expect(body.messages[0].content).toContain("只输出一个 JSON");
+    expect(body.messages[0].content).toContain("risk");
+    expect(body.messages[1].content).toContain("组会被点名");
+    await page.click("#save");
+    expect(await page.evaluate(() => entries[0].ql)).toEqual({ s: "ai", fix: 0 });
+  });
+
+  test("AI 判断有风险时停止填表；这句话写进记录后也会标记为需要关注", async ({ page }) => {
+    await boot(page);
+    await page.route("https://mock-ai.test/**", (r) => r.fulfill(aiReply({ mood: 1, emotions: [], stress: [], good: [], sleep_hours: null, risk: true })));
+    await useAI(page);
+    const t = "好想睡一觉再也不醒来";
+    await page.fill("#qlIn", t);
+    await page.click("#qlGo");
+    await expect(page.locator("#support")).toBeVisible();
+    await page.click("#supOk");
+    expect(await page.evaluate(() => S.mood)).toBe(0);
+    await page.locator("#moods button").first().click();
+    await page.fill("#note", t);
+    await page.click("#save");
+    expect(await page.evaluate(() => entries[0].risk)).toBe(true);
+  });
+
+  test("AI 接口出错或返回格式不对时，自动退回本机规则", async ({ page }) => {
+    await boot(page);
+    let n = 0;
+    await page.route("https://mock-ai.test/**", (r) => (++n === 1 ? r.fulfill({ status: 500, body: "{}" }) : r.fulfill(aiReply("好的，我来帮你分析一下"))));
+    await useAI(page);
+    await page.fill("#qlIn", "和室友吵架了，很烦");
+    await page.click("#qlGo");
+    await expect(page.locator("#qlMsg")).toContainText("AI 暂时不可用（接口返回 500）");
+    await expect(page.locator("#qlMsg")).toContainText("本机规则识别");
+    await expect(chip(page, "#emos", "烦躁")).toHaveAttribute("aria-pressed", "true");
+    await page.click("#qlUndo");
+    await page.click("#qlGo");
+    await expect(page.locator("#qlMsg")).toContainText("没有返回 JSON");
+    await expect(page.locator("#qlGo")).toBeEnabled();
+  });
+
+  test("旧版 AI 同意不覆盖一句话记录，需要重新勾选", async ({ page }) => {
+    await boot(page);
+    let calls = 0;
+    await page.route("https://mock-ai.test/**", (r) => { calls++; r.fulfill(aiReply({})); });
+    await useAI(page, 2);
+    await expect(page.locator("#qlSrc")).toContainText("勾选同意后");
+    await page.fill("#qlIn", "和室友吵架了，很烦");
+    await page.click("#qlGo");
+    await expect(page.locator("#qlMsg")).toContainText("本机规则识别");
+    expect(calls).toBe(0);
+  });
+
+  test("看不出心情的句子不乱填，只放进备注", async ({ page }) => {
+    await boot(page);
+    await page.fill("#qlIn", "今天吃了饭");
+    await page.click("#qlGo");
+    await expect(page.locator("#qlMsg")).toContainText("没有识别出明确的心情或原因");
+    expect(await page.evaluate(() => S.mood)).toBe(0);
+    await expect(page.locator("#note")).toHaveValue("今天吃了饭");
+  });
 });
 
 test.describe("AI 复盘只用你自己的接口", () => {

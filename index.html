@@ -131,6 +131,11 @@ a{color:var(--accent)}
 .chip-x{border:0;background:none;color:var(--mute);cursor:pointer;font-size:15px;padding:0 6px;margin-left:-2px;border-radius:6px}
 .chip-add{border:1px dashed var(--mute);background:none;color:var(--mute);border-radius:99px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
 .tagin{width:10em;padding:5px 10px;border-radius:99px;font-size:13px}
+.ql{background:var(--accent-soft);border-radius:12px;padding:12px;margin:4px 0 14px}
+.ql .l{margin-top:0}
+.ql-row{flex-wrap:nowrap}.ql-row input{flex:1;min-width:0}.ql-row button{flex:none}
+.ql .alert{margin:10px 0 0}
+.ql .alert.calm{background:var(--card);border:1px solid var(--line);color:var(--fg)}
 </style>
 </head>
 <body>
@@ -158,6 +163,12 @@ a{color:var(--accent)}
   </div>
   <div class="card">
    <h2>此刻心情如何？</h2>
+   <div class="ql" id="qlBox">
+    <label class="l" for="qlIn">一句话说说现在的状态，帮你填好下面的选项（可选）</label>
+    <div class="row ql-row"><input type="text" id="qlIn" maxlength="200" autocomplete="off" placeholder="比如：明天考试好紧张，昨晚只睡了 5 小时"><button class="ghost" id="qlGo">帮我填好</button></div>
+    <p class="sub" id="qlSrc" style="margin:6px 0 0"></p>
+    <div class="alert hide" id="qlMsg" aria-live="polite"></div>
+   </div>
    <div class="moods" id="moods"></div>
    <label class="l">具体的情绪（可多选）</label>
    <div id="emos"><div class="chips" id="emosNeg"><span class="sub grp">不太好</span></div><div class="chips" id="emosPos" style="margin-top:8px"><span class="sub grp">还不错</span></div></div>
@@ -287,12 +298,12 @@ a{color:var(--accent)}
    <div class="row" style="margin-top:10px"><button class="ghost" id="syNow">立即同步</button><button class="ghost" id="syOff">断开并清除令牌</button></div>
    <p class="sub" id="syMsg" style="margin-top:8px"></p>
   </div>
-  <div class="card"><h2>AI 复盘（可选）</h2>
-   <p class="sub">周报默认由本地规则生成，不上传任何数据。如果你有自己的大模型接口（OpenAI 兼容），可以填在这里，洞察页会出现「AI 个性化复盘」按钮。密钥只保存在本浏览器。</p>
+  <div class="card"><h2>AI 功能（可选）</h2>
+   <p class="sub">默认全部由本地规则完成，不上传任何数据。如果你有自己的大模型接口（OpenAI 兼容，例如阿里云百炼、DeepSeek），可以填在这里，开启两项 AI 功能：「一句话记录」改用 AI 识别心情和原因；洞察页出现「AI 个性化复盘」。密钥只保存在本浏览器。</p>
    <label class="l" for="aiBase">接口地址</label><input type="text" id="aiBase" placeholder="https://api.openai.com/v1">
    <label class="l" for="aiModel">模型名</label><input type="text" id="aiModel" placeholder="例如 gpt-4o-mini">
    <label class="l" for="aiKey">API Key</label><input type="password" id="aiKey" autocomplete="new-password">
-   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiOk"> 我同意把本周统计和部分日记文字（敏感个人信息）发送到上面填写的接口生成复盘。含有危机相关内容时不会发送。</label>
+   <label class="row sub" style="margin-top:10px"><input type="checkbox" id="aiOk"> 我同意把我在「一句话记录」里输入的文字，以及复盘时的本周统计和部分日记文字（敏感个人信息）发送到上面填写的接口。含有危机相关内容时不会发送。</label>
    <button class="primary" id="aiSave">保存设置</button>
   </div>
   <div class="card"><h2>我的使用情况（近 7 天）</h2>
@@ -334,7 +345,7 @@ a{color:var(--accent)}
  <p class="sub">开始之前，请花 30 秒了解这几件事：</p>
  <ul class="clist">
   <li>这是情绪记录和自我关怀工具，<b>不是医疗服务</b>，不能代替诊断和治疗。</li>
-  <li>你的记录<b>默认只保存在这台设备上</b>。只有你主动开启云同步、服务器推送或 AI 复盘时，相关数据才会发送到对应服务，开启前会再次征得你的同意。</li>
+  <li>你的记录<b>默认只保存在这台设备上</b>。只有你主动开启云同步、服务器推送或 AI 功能时，相关数据才会发送到对应服务，开启前会再次征得你的同意。</li>
   <li>心情和日记属于<b>敏感个人信息</b>。你可以随时导出，或在「设置 → 我的数据」里删除全部数据。</li>
   <li>如果你有伤害自己的想法，请立即拨打心理援助热线 <b>12356</b>；有立即危险时拨打 <b>120</b> 或 <b>110</b>。</li>
  </ul>
@@ -364,16 +375,12 @@ a{color:var(--accent)}
  <button class="primary" id="supOk">我知道了</button>
 </div></div>
 
+<script src="core.js"></script>
 <script>
 const MOODS=[{v:1,f:"😣",t:"很糟"},{v:2,f:"😔",t:"低落"},{v:3,f:"😐",t:"一般"},{v:4,f:"🙂",t:"不错"},{v:5,f:"😄",t:"很好"}];
-const EMOS=["焦虑","烦躁","委屈","孤独","疲惫","自责","平静","开心","期待","感恩"];
-const NEG=["焦虑","烦躁","委屈","孤独","疲惫","自责"];
-const TRIGS=["学业/考试","工作/实习","人际社交","家庭","睡眠不足","自我比较","未来迷茫","经济压力","身体不适"];
 const KIND={焦虑:"anx",烦躁:"anx",委屈:"sad",孤独:"sad",疲惫:"tired",自责:"sad",平静:"ok",开心:"ok",期待:"ok",感恩:"ok"};
 const KNAME={anx:"紧绷不安",sad:"低落难过",tired:"疲惫",ok:"平稳愉快"};
 const POS_EMOS=EMOS.filter(x=>!NEG.includes(x));
-// 正面情绪的来源：和压力来源分开记录、分开统计
-const GOODS=["完成了一件事","被认可/夸奖","和朋友/家人在一起","运动/户外","睡了个好觉","吃到好吃的","兴趣爱好","帮助了别人","放松/休息"];
 // 写作提示跟着心情走，避免心情很好时问“最消耗你的事”
 const PROMPTS={low:["今天最让你消耗的一件事是什么？","此刻身体哪里最紧？","让你烦的事，有哪一部分是你能控制的？","如果朋友有同样的感受，你会对 TA 说什么？","你现在最需要的是休息、倾诉，还是行动？"],mid:["今天有什么一件小事让你好受一点？","此刻最真实的感受是什么？","今天有什么事一直在脑子里转？"],high:["是什么让今天变好了一点？","今天哪件事你做得比自己以为的好？","想感谢谁，或者想记住哪个瞬间？"]};
 const promptFor=m=>{const a=PROMPTS[m>=4?"high":m&&m<=2?"low":"mid"];return a[new Date().getDate()%a.length]};
@@ -382,9 +389,6 @@ const WD=["周日","周一","周二","周三","周四","周五","周六"];
 const $=s=>document.querySelector(s);
 /* ---------- 安全：危机识别与求助 ---------- */
 const SUPPORT=[["全国心理援助热线","12356","心理健康咨询与危机干预"],["希望 24 热线","400-161-9995","心理危机干预"],["北京心理危机研究与干预中心","010-82951332","心理危机干预"],["急救 / 报警","120 / 110","有立即危险时"]];
-// 宁可多提示一次，也不漏掉；同时排除“笑死”“想死你了”“跳楼价”这类日常说法
-const RISK_RE=[/自杀|轻生|自残|自伤|割腕|上吊|烧炭|吞药|遗书|一了百了/,/不想活|活不下去|活着(没|没有)(意思|意义)|不如死了|死了算了|想去死|我想死|好想死|真想死/,/想死(?!你|您|他|她|它|我了|人了)/,/伤害自己|结束(我的|自己的)?生命|了结(自己|生命)|消失算了|没有我.{0,6}更好/,/跳楼(?!价|大甩卖|甩卖)|跳河|跳桥/,/(一把|很多|大量|攒了?).{0,4}安眠药|安眠药.{0,6}(一把|很多|大量|全吃|都吃)/,/kill myself|suicid|self[- ]?harm|end my life|want to die/i];
-const isRisk=t=>!!t&&RISK_RE.some(r=>r.test(String(t)));
 let supBack=null;
 function openSupport(kind){const risk=kind==="risk";$("#supTitle").textContent=risk?"你现在安全吗？":"需要帮助的时候";
  $("#supLead").textContent=risk?"你写下的内容让人有些担心。谢谢你愿意把它写出来。如果你有伤害自己的想法，请现在就联系下面任何一个：":"如果此刻很难受，不需要一个人扛。下面这些地方都可以求助：";
@@ -562,8 +566,7 @@ const sleepLabel=v=>(SLEEP.find(x=>x[0]===v)||[0,""])[1];
 function renderSleep(){const box=$("#sleepChips");box.innerHTML="";SLEEP.forEach(([v,t])=>box.append(el("button",{class:"chip",role:"radio","aria-checked":String(S.sleep===v),text:t,onclick:()=>{S.sleep=S.sleep===v?null:v;renderSleep()}})))}
 chips($("#emosNeg"),NEG,S.emos,"",()=>syncReasons());chips($("#emosPos"),POS_EMOS,S.emos,"",()=>syncReasons());chips($("#trigs"),TRIGS,S.trigs,"w");chips($("#goods"),GOODS,S.goods,"g");renderCustom("trigs");renderCustom("goods");renderSleep();
 // 原因跟着情绪方向显示：选了负面情绪问压力来源，选了正面情绪问好的来源；没选情绪时按心情判断
-function reasonSides(){const neg=[...S.emos].some(x=>NEG.includes(x)),pos=[...S.emos].some(x=>!NEG.includes(x));
- if(neg||pos)return{neg,pos};const m=S.mood;return{neg:!m||m<=3,pos:!m||m>=3}}
+const reasonSides=()=>QL.sides([...S.emos],S.mood);
 function syncReasons(){const r=reasonSides();$("#trigNegBox").classList.toggle("hide",!r.neg);$("#trigPosBox").classList.toggle("hide",!r.pos);
  if(!r.neg){S.trigs.clear();document.querySelectorAll("#trigs .chip").forEach(c=>c.setAttribute("aria-pressed","false"));renderCustom("trigs")}
  if(!r.pos){S.goods.clear();document.querySelectorAll("#goods .chip").forEach(c=>c.setAttribute("aria-pressed","false"));renderCustom("goods")}
@@ -596,16 +599,18 @@ let editingId=null;
 const saveLabel=()=>editingId?"保存修改":"记录这一刻";
 function editUI(){const e=editingId&&entries.find(x=>x.id===editingId);$("#editBar").classList.toggle("hide",!e);if(e)$("#editText").textContent="正在编辑 "+fmt(e.t)+" 的记录。";$("#save").textContent=saveLabel()}
 function setChips(box,set,vals){set.clear();vals.forEach(v=>set.add(v));document.querySelectorAll(box+" .chip").forEach(c=>c.setAttribute("aria-pressed",set.has(c.textContent)))}
-function startEdit(e){editingId=e.id;S.mood=e.mood;[...$("#moods").children].forEach((c,i)=>c.setAttribute("aria-pressed",i===e.mood-1));
+function startEdit(e){qlDone();editingId=e.id;S.mood=e.mood;[...$("#moods").children].forEach((c,i)=>c.setAttribute("aria-pressed",i===e.mood-1));
  setChips("#emos",S.emos,e.emos);setChips("#trigs",S.trigs,e.trigs);setChips("#goods",S.goods,e.pos||[]);S.sleep=e.sleep||null;syncReasons();renderCustom("trigs");renderCustom("goods");renderSleep();$("#note").value=e.note||"";$("#after").hidden=true;editUI();goTab("log");$("#moods").scrollIntoView({block:"center"})}
-function cancelEdit(){setTimeout(()=>{renderCustom("trigs");renderCustom("goods")});editingId=null;S.mood=0;S.emos.clear();S.trigs.clear();S.goods.clear();S.sleep=null;renderSleep();$("#note").value="";document.querySelectorAll("#log .chip:not([role=radio]),.moods button").forEach(b=>b.setAttribute("aria-pressed","false"));syncReasons();editUI()}
+function cancelEdit(){qlDone();setTimeout(()=>{renderCustom("trigs");renderCustom("goods")});editingId=null;S.mood=0;S.emos.clear();S.trigs.clear();S.goods.clear();S.sleep=null;renderSleep();$("#note").value="";document.querySelectorAll("#log .chip:not([role=radio]),.moods button").forEach(b=>b.setAttribute("aria-pressed","false"));syncReasons();editUI()}
 $("#editCancel").onclick=cancelEdit;
 $("#save").onclick=()=>{
  if(!S.mood){$("#save").textContent="请先选择一个心情";setTimeout(()=>$("#save").textContent=saveLabel(),1500);return}
  const old=editingId&&entries.find(x=>x.id===editingId),now=Date.now();
  const e=old?Object.assign(old,{mood:S.mood,emos:[...S.emos],trigs:[...S.trigs],pos:[...S.goods],sleep:S.sleep||undefined,note:$("#note").value.trim(),u:now}):{id:now+"-"+Math.random().toString(36).slice(2,6),t:now,u:now,mood:S.mood,emos:[...S.emos],trigs:[...S.trigs],pos:[...S.goods],note:$("#note").value.trim()};
  if(S.sleep)e.sleep=S.sleep;else delete e.sleep;
- delete e.risk;if(isRisk(e.note))e.risk=true;
+ delete e.risk;if(isRisk(e.note)||(qlRiskText&&e.note.includes(qlRiskText)))e.risk=true;
+ if(!old&&qlSug)e.ql={s:qlSug.src,fix:QL.diff(qlSug,{mood:e.mood,emos:e.emos,trigs:e.trigs,goods:e.pos})};
+ qlDone();
  if(!old){entries.unshift(e);if(typeof pushDone==="function")pushDone()}save();editingId=null;editUI();
  const k=kindOf(e),a=$("#after");a.hidden=false;a.innerHTML="";
  if(e.risk){a.append(el("h2",{text:old?"已保存修改":"已记录"}),el("p",{style:"margin:0 0 8px",text:"谢谢你愿意写下来。你不需要一个人扛着，现在就可以找人说说。"}),el("div",{class:"row"},el("b",{text:"心理援助热线 12356"}),el("button",{class:"ghost",text:"查看求助方式",onclick:()=>openSupport("risk")})));openSupport("risk")}
@@ -679,8 +684,8 @@ function renderReport(){const R=weekReport(rpW);lastReport=R;const b=$("#rpBody"
 document.querySelectorAll("#rpTabs button").forEach(b=>b.onclick=()=>{rpW=+b.dataset.w;renderReport()});
 $("#rpCopy").onclick=async()=>{const t="晴一日记 · 情绪周报\n"+lastReport.paras.join("\n");try{await navigator.clipboard.writeText(t);$("#rpCopy").textContent="已复制 ✓"}catch(e){const ta=el("textarea",{});ta.value=t;$("#rpBody").append(ta);ta.select();$("#rpCopy").textContent="请手动复制"}setTimeout(()=>$("#rpCopy").textContent="复制周报",2000)};
 $("#rpAI").onclick=async()=>{const cfg=getAI(),out=$("#aiOut"),btn=$("#rpAI");
- if(!cfg.key){$("#aiHint").textContent="AI 复盘需要你自己的模型接口，可以在「设置 → AI 复盘」里填写。上方的本地周报不需要联网。";return}
- if(!cfg.ok){$("#aiHint").textContent="使用 AI 复盘前，请先到「设置 → AI 复盘」勾选数据发送同意。上方的本地周报不需要联网。";return}
+ if(!cfg.key){$("#aiHint").textContent="AI 复盘需要你自己的模型接口，可以在「设置 → AI 功能」里填写。上方的本地周报不需要联网。";return}
+ if(!cfg.ok){$("#aiHint").textContent="使用 AI 复盘前，请先到「设置 → AI 功能」勾选数据发送同意。上方的本地周报不需要联网。";return}
  if(!lastReport.es.length){$("#aiHint").textContent="这段时间没有记录，没法复盘。";return}
  if(lastReport.es.some(e=>e.risk||isRisk(e.note))){out.classList.remove("hide");out.textContent="这一周的记录里有让人担心的内容，AI 复盘先暂停了，这些文字也不会发送出去。比起分析，现在更重要的是照顾好自己：如果你有伤害自己的想法，请拨打心理援助热线 12356，或联系身边信任的人。";$("#aiHint").textContent="";openSupport("risk");return}
  btn.disabled=true;btn.textContent="生成中…";out.classList.remove("hide");out.textContent="正在整理你这一周的情绪……";
@@ -722,14 +727,62 @@ function alertHtml(box){const risk=riskRecent(),low=lowAlertNeeded();box.classLi
  box.append(el("span",{text:risk?"最近的记录里有让人担心的内容。你的感受很重要，请不要一个人扛。":"最近几天你的心情一直偏低。这很不容易，也不是你的错。可以先试一个小练习，或者找信任的人聊聊。"}),el("div",{class:"row",style:"margin-top:8px"},el("b",{text:"心理援助热线 12356"}),el("button",{class:"ghost",text:"更多求助方式",onclick:()=>openSupport(risk?"risk":"help")})))}
 
 /* ---------- 设置与数据 ---------- */
-// AI 同意带版本号：v2 起默认经服务器转发，旧版的同意不能沿用
-const AI_OKV=2;
+// AI 同意带版本号：用途变化时升级，旧版的同意不能沿用（v3 新增「一句话记录」）
+const AI_OKV=3;
 const getAI=()=>{const c=lsGet("qy_ai",{});return{base:c.base||"https://api.openai.com/v1",model:c.model||"",ok:!!c.ok&&c.okv>=AI_OKV,key:(secrets.ai&&secrets.ai.key)||memKey}};
-$("#aiOk").onchange=e=>{const c=lsGet("qy_ai",{});c.ok=e.target.checked;c.okv=AI_OKV;lsSet("qy_ai",c)};
-const aiBtnUI=()=>$("#rpAI").classList.toggle("hide",!getAI().key);
+$("#aiOk").onchange=e=>{const c=lsGet("qy_ai",{});c.ok=e.target.checked;c.okv=AI_OKV;lsSet("qy_ai",c);qlSrcUI()};
+const aiBtnUI=()=>{$("#rpAI").classList.toggle("hide",!getAI().key);qlSrcUI()};
 function initAIUI(){const c=lsGet("qy_ai",{});$("#aiBase").value=c.base||"";$("#aiModel").value=c.model||"";$("#aiOk").checked=getAI().ok;$("#aiKey").value=getAI().key;aiBtnUI()}
 $("#aiSave").onclick=()=>{const base=$("#aiBase").value.trim()||"https://api.openai.com/v1",key=$("#aiKey").value.trim();lsSet("qy_ai",{base,model:$("#aiModel").value.trim(),ok:$("#aiOk").checked,okv:AI_OKV});memKey=key;
  if(vaultKey){if(key)secrets.ai={key};else delete secrets.ai;save();$("#meMsg").textContent="AI 设置已保存，密钥已加密存放在本机。";aiBtnUI()}else $("#meMsg").textContent="AI 设置已保存。未启用本机加密，密钥只在本次打开期间有效，不会写入磁盘。";aiBtnUI()};
+/* ---------- 一句话记录：固定步骤的工作流，模型只负责第 ② 步 ----------
+   ① 危机检查（本机规则）→ ② 识别（你配置的 AI；没配置、失败或超时就用本机规则）→ ③ 模型判断有风险则停止
+   → ④ 校验与方向一致（core.js）→ ⑤ 预填表单，用户确认后才保存，并记下改了几处 */
+let qlSug=null,qlPrev=null,qlRiskText="";
+const QL_TIMEOUT=10000;
+const qlAI=()=>{const c=getAI();return c.key&&c.ok&&c.model?c:null};
+function qlSrcUI(){const c=getAI();$("#qlSrc").textContent=qlAI()?"由你配置的 AI 模型识别。发送前会先在本机做危机检查，识别结果需要你确认后才保存。"
+ :c.key&&!c.ok?"当前由本机规则识别，不联网。到「设置 → AI 功能」勾选同意后，可改用 AI 识别。"
+ :"当前由本机规则识别，不联网。在「设置 → AI 功能」填写你自己的模型接口后，可改用 AI 识别。"}
+function qlMsg(nodes,warn){const m=$("#qlMsg");m.innerHTML="";m.classList.toggle("hide",!nodes);m.classList.toggle("calm",!warn);if(nodes)m.append(...[].concat(nodes))}
+function qlDone(){qlSug=null;qlPrev=null;qlRiskText="";$("#qlIn").value="";qlMsg(null)}
+const qlLabels=()=>({emos:EMOS,trigs:[...TRIGS,...customOf("trigs")],goods:[...GOODS,...customOf("goods")]});
+async function qlCallAI(cfg,text,labels){const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),QL_TIMEOUT);
+ try{const r=await fetch(cfg.base.replace(/\/$/,"")+"/chat/completions",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.key},body:JSON.stringify(QL.body(cfg.model,text,labels))});
+  if(!r.ok)throw new Error("接口返回 "+r.status);const j=await r.json(),c=j&&j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;
+  const p=QL.parse(c,labels);if(!p.ok)throw new Error(p.error);return p}
+ catch(e){throw new Error(e.name==="AbortError"?"超时":e.message)}finally{clearTimeout(tm)}}
+function qlFill(r,text){qlPrev={mood:S.mood,emos:[...S.emos],trigs:[...S.trigs],goods:[...S.goods],sleep:S.sleep,note:$("#note").value};
+ if(r.mood){S.mood=r.mood;[...$("#moods").children].forEach((c,i)=>c.setAttribute("aria-pressed",i===r.mood-1))}
+ setChips("#emos",S.emos,r.emos);setChips("#trigs",S.trigs,r.trigs);setChips("#goods",S.goods,r.goods);if(r.sleep)S.sleep=r.sleep;
+ if(!$("#note").value.trim())$("#note").value=text;
+ syncReasons();renderCustom("trigs");renderCustom("goods");renderSleep()}
+function qlUndo(){const p=qlPrev;if(!p)return;S.mood=p.mood;[...$("#moods").children].forEach((c,i)=>c.setAttribute("aria-pressed",i===p.mood-1));
+ setChips("#emos",S.emos,p.emos);setChips("#trigs",S.trigs,p.trigs);setChips("#goods",S.goods,p.goods);S.sleep=p.sleep;$("#note").value=p.note;
+ syncReasons();renderCustom("trigs");renderCustom("goods");renderSleep();qlSug=null;qlPrev=null;qlMsg(el("span",{text:"已撤销，表单恢复到填写前的样子。"}))}
+function qlStop(text,why){qlRiskText=text;qlSug=null;
+ qlMsg([el("span",{text:why+"这句话没有被自动整理。你的感受很重要，如果有伤害自己的想法，请现在就联系心理援助热线 12356，或身边信任的人。"}),el("div",{class:"row",style:"margin-top:8px"},el("button",{class:"ghost",text:"查看求助方式",onclick:()=>openSupport("risk")}))],true);openSupport("risk")}
+async function qlRun(){const text=$("#qlIn").value.trim(),btn=$("#qlGo");if(locked)return;
+ if(text.length<2){qlMsg(el("span",{text:"先用一句话说说现在的状态，比如“组会被点名，脑子一片空白”。"}));$("#qlIn").focus();return}
+ // ① 危机检查：命中就不识别、不发送
+ if(isRisk(text)){qlStop(text,"");return}
+ const labels=qlLabels(),cfg=qlAI();let r=null,src="rule",note="";
+ // ② 识别：优先用 AI，任何失败都退回本机规则，功能不会因为接口出错而不可用
+ if(cfg){btn.disabled=true;btn.textContent="识别中…";
+  try{r=await qlCallAI(cfg,text,labels);src="ai"}catch(e){note="AI 暂时不可用（"+e.message+"），已改用本机规则识别。"}
+  btn.disabled=false;btn.textContent="帮我填好"}
+ if(!r)r=QL.rules(text,labels);
+ // ③ 模型从语义上判断有风险：同样停止
+ if(r.risk){qlStop(text,"");return}
+ // ④ 方向一致：只有负面情绪时不填“好的来源”，反之亦然
+ r=QL.consistent(r);
+ // ⑤ 预填，等用户确认
+ qlFill(r,text);qlSug={src,mood:r.mood,emos:r.emos,trigs:r.trigs,goods:r.goods};
+ const parts=[r.mood?"心情「"+MOODS[r.mood-1].t+"」":null,r.emos.length?"情绪："+r.emos.join("、"):null,r.trigs.length?"压力来源："+r.trigs.join("、"):null,r.goods.length?"让你变好的事："+r.goods.join("、"):null,r.sleep?"睡眠："+sleepLabel(r.sleep):null].filter(Boolean);
+ const who=src==="ai"?"AI 识别":"本机规则识别";
+ qlMsg([el("span",{text:(note?note+" ":"")+(parts.length?"已帮你预填（"+who+"）："+parts.join("；")+"。请检查一下，不对的直接点选修改"+(r.mood?"，确认后点「记录这一刻」。":"。没能判断心情，请自己选一个。"):"没有识别出明确的心情或原因，已把这句话放进备注，请自己选一下。")}),
+  el("div",{class:"row",style:"margin-top:8px"},el("button",{class:"ghost",id:"qlUndo",text:"撤销预填",onclick:qlUndo}))])}
+$("#qlGo").onclick=qlRun;$("#qlIn").onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();qlRun()}};
 initAIUI();
 $("#exp").onclick=()=>{const u=URL.createObjectURL(new Blob([JSON.stringify({app:"qingyi",entries},null,1)],{type:"application/json"}));const a=el("a",{href:u,download:"qingyi-backup.json"});document.body.append(a);a.click();a.remove();$("#meMsg").textContent=`已导出 ${entries.length} 条记录。备份文件没有加密，请妥善保管。若浏览器没有下载，请改用普通浏览器标签打开本页再试。`};
 $("#impBtn").onclick=()=>$("#imp").click();
@@ -1011,9 +1064,9 @@ const APP_V="2026.10.17";
 const localDate=t=>{const d=new Date(t);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())};
 function usage7(){const from=dayStart(Date.now())-6*DAY,real=entries.filter(e=>!e.demo),rs=real.filter(e=>e.t>=from),ps=practice.filter(p=>p.t>=from),rated=ps.filter(p=>p.pre&&p.post);
  const first=Math.min(...real.map(e=>e.t),...practice.map(p=>p.t));
- return{records:rs.length,active:new Set(rs.map(e=>dayStart(e.t))).size,practices:ps.length,rated:rated.length,delta:rated.length?+(rated.reduce((a,p)=>a+(p.post-p.pre),0)/rated.length).toFixed(2):null,first:isFinite(first)?localDate(first):null}}
+ return{ql:rs.filter(e=>e.ql).length,qlKeep:rs.filter(e=>e.ql&&e.ql.fix===0).length,records:rs.length,active:new Set(rs.map(e=>dayStart(e.t))).size,practices:ps.length,rated:rated.length,delta:rated.length?+(rated.reduce((a,p)=>a+(p.post-p.pre),0)/rated.length).toFixed(2):null,first:isFinite(first)?localDate(first):null}}
 function rsPayload(){const r=prefs0().research,u=usage7();return{install_id:(r&&r.id)||"（加入后在本机随机生成）",day:localDate(Date.now()),records_7d:u.records,active_days_7d:u.active,practices_7d:u.practices,rated_7d:u.rated,avg_delta_7d:u.delta,first_day:u.first,v:APP_V}}
-function renderUsage(){const u=usage7();$("#usage").textContent=`记录 ${u.records} 条，分布在 ${u.active} 天；做了 ${u.practices} 次练习`+(u.rated?`，其中 ${u.rated} 次前后都打了分，平均变化 ${(u.delta>0?"+":"")+u.delta} 档。`:"。");
+function renderUsage(){const u=usage7();$("#usage").textContent=`记录 ${u.records} 条，分布在 ${u.active} 天；做了 ${u.practices} 次练习`+(u.rated?`，其中 ${u.rated} 次前后都打了分，平均变化 ${(u.delta>0?"+":"")+u.delta} 档。`:"。")+(u.ql?`用一句话记录 ${u.ql} 次，其中 ${u.qlKeep} 次没有改动预填的结果。`:"");
  $("#rsPreview").textContent=JSON.stringify(rsPayload(),null,1);const r=prefs0().research;$("#rsOn").checked=!!(r&&r.on)}
 async function rsReport(force){const r=prefs0().research;if(!r||!r.on||!consented()||locked)return;const day=localDate(Date.now());if(!force&&r.last===day)return;const x=rsPayload();if(!x.first_day)return;
  try{const res=await fetch(SB+"/rest/v1/rpc/report_day",{method:"POST",headers:sbH(),body:JSON.stringify({p_install:r.id,p_day:x.day,p_records:x.records_7d,p_active:x.active_days_7d,p_practices:x.practices_7d,p_rated:x.rated_7d,p_delta:x.avg_delta_7d,p_first:x.first_day,p_v:APP_V})});
