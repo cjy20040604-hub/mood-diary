@@ -25,6 +25,8 @@ async function seed(page, list) {
     save(); render();
   }, { list, HOUR });
 }
+// 写入是异步排队的；需要重新加载页面前，先等排队中的写入完成
+const flush = (page) => page.evaluate(() => chain);
 const tab = (page, t) => page.locator('nav button[data-t="' + t + '"]').click();
 
 test.describe("首次使用与隐私", () => {
@@ -555,6 +557,7 @@ test.describe("存储：IndexedDB 与迁移", () => {
     await page.locator(".moods button").nth(3).click();
     await page.fill("#note", "没有数据库也能记");
     await page.click("#save");
+    await flush(page);
     await page.reload();
     await page.waitForFunction(() => window.qyReady === true);
     await expect(page.locator(".entry")).toContainText("没有数据库也能记");
@@ -1148,6 +1151,7 @@ test.describe("自定义标签与睡眠时长", () => {
     await expect(chip).toHaveAttribute("aria-pressed", "true");
     await page.click("#save");
     expect(await page.evaluate(() => entries[0].trigs)).toEqual(["导师催进度"]);
+    await flush(page);
     await page.reload();
     await page.waitForFunction(() => window.qyReady === true);
     await expect(page.locator("#trigsCustom .chip", { hasText: "导师催进度" })).toBeVisible();
@@ -1237,6 +1241,7 @@ test.describe("使用情况、改进计划与反馈", () => {
     let called = false;
     await page.route(/rpc\/report_day/, (r) => { called = true; r.fulfill({ status: 204, body: "" }); });
     await seed(page, [{ mood: 3 }]);
+    await flush(page);
     await page.reload();
     await page.waitForFunction(() => window.qyReady === true);
     await page.waitForTimeout(2000);
